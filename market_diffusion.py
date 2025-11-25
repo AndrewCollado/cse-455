@@ -7,7 +7,7 @@ import pandas as pd
 import yfinance as yf
 import math
 import matplotlib.pyplot as plt
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 # ==========================================
 # 1. CONFIGURATION
@@ -282,6 +282,13 @@ def main():
             main() # Retry with mock
             return
 
+    # --- Scale the returns ---
+    scaler = StandardScaler()
+    # Reshape to (N, 1) for the scaler
+    returns_array = df['returns'].values.reshape(-1, 1)
+    df['returns'] = scaler.fit_transform(returns_array)
+    # -------------------------
+
     print(f"Data Prepared: {df.shape[0]} samples.")
     dataset = FinancialDataset(df, conf.seq_length, conf.cond_length)
     dataloader = DataLoader(dataset, batch_size=conf.batch_size, shuffle=True)
@@ -351,10 +358,14 @@ def main():
     # 5. Visualization & Analysis
     plt.figure(figsize=(14, 7))
     
-    def process_paths(returns_tensor, start_price):
+    def process_paths(returns_tensor, start_price, scaler):
         # Input shape: (Batch, 1, Seq_Len)
         # Squeeze channel dim: (Batch, Seq_Len)
         r = returns_tensor.squeeze(1).cpu().numpy()
+        
+        # --- Inverse Transform Scaling ---
+        r = r * scaler.scale_[0] + scaler.mean_[0]
+        # ---------------------------------
         
         # Calculate Cumulative Returns -> Prices
         # We perform cumsum along the TIME axis (axis 1)
@@ -382,6 +393,11 @@ def main():
     # Get start price for plotting continuity
     # History Processing
     hist_r = sample_hist.squeeze(1).cpu().numpy() # (1, 32)
+    
+    # --- Unscale History ---
+    hist_r = hist_r * scaler.scale_[0] + scaler.mean_[0]
+    # -----------------------
+    
     # Assume arbitrary start of 100 for history, or normalize
     hist_prices = 100 * np.exp(np.cumsum(hist_r, axis=1)) 
     hist_prices = hist_prices[0] # Take first (only) batch item -> (32,)
@@ -389,8 +405,8 @@ def main():
     start_price = hist_prices[-1]
     
     # Process Futures
-    fear_prices_arr = process_paths(fear_paths, start_price)
-    greed_prices_arr = process_paths(greed_paths, start_price)
+    fear_prices_arr = process_paths(fear_paths, start_price, scaler)
+    greed_prices_arr = process_paths(greed_paths, start_price, scaler)
 
     # Time axes
     time_hist = np.arange(conf.cond_length)
