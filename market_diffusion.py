@@ -29,6 +29,8 @@ class Config:
     
     # Monte Carlo Settings
     num_paths = 30            # Number of simulations for Monte Carlo
+    cfg_scale = 3.0           # Classifier-Free Guidance scale for sentiment conditioning
+    cond_drop_prob = 0.1      # Probability of dropping condition during training
 
 # ==========================================
 # 2. DATA PIPELINE
@@ -232,8 +234,8 @@ class DiffusionManager:
         return sqrt_alphas_cumprod * x_start + sqrt_one_minus_alphas_cumprod * noise, noise
 
     @torch.no_grad()
-    def sample(self, model, history, sentiment):
-        # Reverse Process: p(x_{t-1} | x_t)
+    def sample(self, model, history, sentiment, cfg_scale=1.0):
+        # Reverse Process: p(x_{t-1} | x_t) with Classifier-Free Guidance
         model.eval()
         batch_size = history.shape[0]
         seq_len = history.shape[2]
@@ -241,11 +243,18 @@ class DiffusionManager:
         # Start from pure noise
         img = torch.randn((batch_size, 1, seq_len)).to(self.device)
         
+        # Unconditional sentiment (zeros) for CFG
+        uncond_sentiment = torch.zeros_like(sentiment)
+        
         for i in reversed(range(0, self.timesteps)):
             t = torch.full((batch_size,), i, device=self.device, dtype=torch.long)
             
-            # Predict noise
-            predicted_noise = model(img, t, history, sentiment)
+            # Classifier-Free Guidance: predict with and without condition
+            noise_cond = model(img, t, history, sentiment)
+            noise_uncond = model(img, t, history, uncond_sentiment)
+            
+            # CFG formula: uncond + scale * (cond - uncond)
+            predicted_noise = noise_uncond + cfg_scale * (noise_cond - noise_uncond)
             
             # Algorithm 2 form DDPM paper
             alpha = self.alphas[i]
@@ -315,14 +324,19 @@ def main():
         for history, future, sentiment in dataloader:
             history, future, sentiment = history.to(conf.device), future.to(conf.device), sentiment.to(conf.device)
             
+            # Classifier-Free Guidance: randomly drop sentiment condition
+            # This teaches the model to work with AND without sentiment
+            mask = torch.rand(sentiment.shape[0], 1, device=conf.device) > conf.cond_drop_prob
+            sentiment_masked = sentiment * mask.float()
+            
             # Sample t
             t = torch.randint(0, conf.timesteps, (history.size(0),), device=conf.device).long()
             
             # Add noise
             noisy_future, noise = diffuser.add_noise(future, t)
             
-            # Predict noise
-            noise_pred = model(noisy_future, t, history, sentiment)
+            # Predict noise (with potentially masked sentiment)
+            noise_pred = model(noisy_future, t, history, sentiment_masked)
             
             loss = loss_fn(noise_pred, noise)
             
@@ -353,7 +367,8 @@ def main():
     fear_paths = diffuser.sample(
         model, 
         sample_hist.repeat(conf.num_paths, 1, 1), 
-        fear_cond.repeat(conf.num_paths, 1)
+        fear_cond.repeat(conf.num_paths, 1),
+        cfg_scale=conf.cfg_scale
     )
     
     # Generate multiple paths for "Extreme Greed" (0.9)
@@ -361,7 +376,8 @@ def main():
     greed_paths = diffuser.sample(
         model, 
         sample_hist.repeat(conf.num_paths, 1, 1), 
-        greed_cond.repeat(conf.num_paths, 1)
+        greed_cond.repeat(conf.num_paths, 1),
+        cfg_scale=conf.cfg_scale
     )
 
     import matplotlib.ticker as mtick
@@ -411,17 +427,25 @@ def main():
 
     # Get start price for plotting continuity
     # History Processing
-    hist_r = sample_hist.squeeze(1).cpu().numpy() # (1, 32)
+    hist_r = sample_hist.squeeze(1).cpu().numpy() # (1, 64)
     
     # --- Unscale History ---
     hist_r = hist_r * scaler.scale_[0] + scaler.mean_[0]
     # -----------------------
     
-    # Assume arbitrary start of 100 for history, or normalize
-    hist_prices = 100 * np.exp(np.cumsum(hist_r, axis=1)) 
-    hist_prices = hist_prices[0] # Take first (only) batch item -> (32,)
+    # Get the ACTUAL last price from the dataframe (real SPY price)
+    actual_current_price = df['price'].iloc[-1]
     
-    start_price = hist_prices[-1]
+    # Calculate history prices working backwards from current price
+    # We need to find what price 64 days ago would give us current price after these returns
+    cumulative_hist_r = np.cumsum(hist_r, axis=1)
+    total_hist_return = cumulative_hist_r[0, -1]  # Total return over history period
+    
+    # Starting price = current_price / exp(total_return)
+    hist_start_price = actual_current_price / np.exp(total_hist_return)
+    hist_prices = hist_start_price * np.exp(cumulative_hist_r[0])
+    
+    start_price = hist_prices[-1]  # This should equal actual_current_price
     
     # Process Futures
     fear_prices_arr = process_paths(fear_paths, start_price, scaler)
@@ -442,7 +466,7 @@ def main():
 
     ax1.set_title(f"Monte Carlo Diffusion: Sentiment-Conditioned Market Simulation\nTicker: {conf.ticker} | Paths: {conf.num_paths} | Epochs: {conf.epochs}")
     ax1.set_xlabel("Trading Days")
-    ax1.set_ylabel("Price (Normalized)")
+    ax1.set_ylabel(f"Price ($)")
     ax1.legend(loc="upper left")
     ax1.grid(True, alpha=0.3)
     
