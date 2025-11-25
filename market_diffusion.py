@@ -23,8 +23,8 @@ class Config:
     timesteps = 500           # Diffusion steps
     batch_size = 64
     lr = 1e-3
-    epochs = 50               # Increase to 500+ for real results
-    hidden_dim = 64
+    epochs = 100              # Increase to 500+ for real results
+    hidden_dim = 128
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Monte Carlo Settings
@@ -185,6 +185,7 @@ class SentimentDiffusion(nn.Module):
             ResidualBlock1D(self.hidden, self.hidden),
         ])
         
+        self.dropout = nn.Dropout(0.1)
         self.final_conv = nn.Conv1d(self.hidden, 1, 1)
 
     def forward(self, x, t, history, sentiment):
@@ -205,6 +206,7 @@ class SentimentDiffusion(nn.Module):
         
         for block in self.blocks:
             h = block(h, global_cond)
+            h = self.dropout(h)
             
         return self.final_conv(h)
 
@@ -254,6 +256,9 @@ class DiffusionManager:
                 noise = torch.randn_like(img)
             else:
                 noise = torch.zeros_like(img)
+            
+            # Add temperature to noise to increase diversity
+            noise = noise * 1.2
                 
             img = (1 / torch.sqrt(alpha)) * (img - ((1 - alpha) / (torch.sqrt(1 - alpha_cumprod))) * predicted_noise) + torch.sqrt(beta) * noise
             
@@ -297,6 +302,7 @@ def main():
     model = SentimentDiffusion(conf).to(conf.device)
     diffuser = DiffusionManager(conf)
     optimizer = optim.AdamW(model.parameters(), lr=conf.lr)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20)
     loss_fn = nn.MSELoss()
     
     # 3. Training Loop
@@ -328,6 +334,9 @@ def main():
             
         avg_loss = epoch_loss / len(dataloader)
         loss_history.append(avg_loss)
+        
+        scheduler.step(avg_loss)
+        
         if (epoch+1) % 10 == 0:
             print(f"Epoch {epoch+1}/{conf.epochs} | Loss: {avg_loss:.6f}")
 
@@ -355,8 +364,13 @@ def main():
         greed_cond.repeat(conf.num_paths, 1)
     )
 
+    import matplotlib.ticker as mtick
+
     # 5. Visualization & Analysis
-    plt.figure(figsize=(14, 7))
+    fig, ax1 = plt.subplots(figsize=(14, 7))
+    
+    # Adjust margins to remove space on left/right
+    plt.margins(x=0)
     
     def process_paths(returns_tensor, start_price, scaler):
         # Input shape: (Batch, 1, Seq_Len)
@@ -372,23 +386,28 @@ def main():
         # Formula: P_t = P_0 * exp(cumsum(r))
         cumulative_r = np.cumsum(r, axis=1)
         prices = start_price * np.exp(cumulative_r)
+        # Prepend start_price to each path for visual continuity
+        # Shape becomes (Batch, Seq_Len + 1)
+        start_col = np.full((prices.shape[0], 1), start_price)
+        prices = np.hstack([start_col, prices])
+        
         return prices
 
     # Helper to plot confidence intervals
-    def plot_confidence_intervals(time_axis, prices, color, label):
+    def plot_confidence_intervals(ax, time_axis, prices, color, label):
         mean_path = np.mean(prices, axis=0)
         p05 = np.percentile(prices, 5, axis=0)
         p95 = np.percentile(prices, 95, axis=0)
         
         # Plot individual paths (thin, transparent)
         for i in range(min(len(prices), 50)): # Limit to 50 lines to avoid clutter
-            plt.plot(time_axis, prices[i], color=color, alpha=0.1)
+            ax.plot(time_axis, prices[i], color=color, alpha=0.1)
             
         # Plot Mean
-        plt.plot(time_axis, mean_path, color=color, linewidth=2.5, linestyle='--', label=f'{label} Mean')
+        ax.plot(time_axis, mean_path, color=color, linewidth=2.5, linestyle='--', label=f'{label} Mean')
         
         # Plot Confidence Interval
-        plt.fill_between(time_axis, p05, p95, color=color, alpha=0.2, label=f'{label} 90% CI')
+        ax.fill_between(time_axis, p05, p95, color=color, alpha=0.2, label=f'{label} 90% CI')
 
     # Get start price for plotting continuity
     # History Processing
@@ -410,21 +429,43 @@ def main():
 
     # Time axes
     time_hist = np.arange(conf.cond_length)
-    time_fut = np.arange(conf.cond_length, conf.cond_length + conf.pred_length)
+    # Future time starts at the end of history (conf.cond_length - 1) to connect
+    # Length is pred_length + 1 because we prepended the start price
+    time_fut = np.arange(conf.cond_length - 1, conf.cond_length + conf.pred_length)
 
     # Plot History
-    plt.plot(time_hist, hist_prices, color='black', label='History (Real)', linewidth=2.5)
+    ax1.plot(time_hist, hist_prices, color='black', label='History (Real)', linewidth=2.5)
     
     # Plot Monte Carlo Fans
-    plot_confidence_intervals(time_fut, fear_prices_arr, 'red', 'Extreme Fear (-0.9)')
-    plot_confidence_intervals(time_fut, greed_prices_arr, 'green', 'Extreme Greed (+0.9)')
+    plot_confidence_intervals(ax1, time_fut, fear_prices_arr, 'red', 'Extreme Fear (-0.9)')
+    plot_confidence_intervals(ax1, time_fut, greed_prices_arr, 'green', 'Extreme Greed (+0.9)')
 
-    plt.title(f"Monte Carlo Diffusion: Sentiment-Conditioned Market Simulation\nTicker: {conf.ticker} | Paths: {conf.num_paths} | Epochs: {conf.epochs}")
-    plt.xlabel("Trading Days")
-    plt.ylabel("Price (Normalized)")
-    plt.legend(loc="upper left")
-    plt.grid(True, alpha=0.3)
+    ax1.set_title(f"Monte Carlo Diffusion: Sentiment-Conditioned Market Simulation\nTicker: {conf.ticker} | Paths: {conf.num_paths} | Epochs: {conf.epochs}")
+    ax1.set_xlabel("Trading Days")
+    ax1.set_ylabel("Price (Normalized)")
+    ax1.legend(loc="upper left")
+    ax1.grid(True, alpha=0.3)
     
+    # Add Secondary Y-Axis for Percentage Change
+    ax2 = ax1.twinx()
+    
+    # Calculate percentage bounds based on the primary axis view
+    y1_min, y1_max = ax1.get_ylim()
+    
+    # Convert price limits to percentage change relative to start_price
+    pct_min = ((y1_min - start_price) / start_price) * 100
+    pct_max = ((y1_max - start_price) / start_price) * 100
+    
+    ax2.set_ylim(pct_min, pct_max)
+    ax2.set_ylabel("Change from Current Price (%)")
+    
+    # Format the right y-axis with +/-% signs
+    ax2.yaxis.set_major_formatter(mtick.PercentFormatter())
+    
+    # Force the x-axis to be tight
+    ax1.set_xlim(time_hist[0], time_fut[-1])
+    
+    plt.tight_layout()
     plt.savefig("monte_carlo_diffusion.png")
     print("Monte Carlo Simulation complete. Results saved to 'monte_carlo_diffusion.png'.")
 
