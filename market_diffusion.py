@@ -15,9 +15,9 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 class Config:
     use_mock_data = False     # Set to True if you don't have internet
     ticker = "SPY"            # Target ETF
-    seq_length = 64           # Total window size (32 past + 32 future)
-    cond_length = 32          # How much history the model sees
-    pred_length = 32          # How much future the model generates
+    seq_length = 128          # Total window size (64 past + 64 future)
+    cond_length = 64          # How much history the model sees
+    pred_length = 64          # How much future the model generates
     
     # Model Hyperparameters
     timesteps = 500           # Diffusion steps
@@ -28,7 +28,7 @@ class Config:
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Monte Carlo Settings
-    num_paths = 50            # Number of simulations for Monte Carlo
+    num_paths = 30            # Number of simulations for Monte Carlo
 
 # ==========================================
 # 2. DATA PIPELINE
