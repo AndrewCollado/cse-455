@@ -4,4 +4,6 @@ pandas
 yfinance
 matplotlib
 scikit-learn
-
+scipy
+statsmodels
+arch
