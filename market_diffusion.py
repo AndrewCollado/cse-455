@@ -67,10 +67,10 @@ class Config:
     
     # Model Hyperparameters - SIMPLIFIED
     timesteps = 200           # Fewer diffusion steps (simpler)
-    batch_size = 64           # Increase to 128-256 on GPU if memory allows
+    batch_size = 128           # Increase to 128-256 on GPU if memory allows
     lr = 1e-3                 # Higher LR for simple model
-    epochs = 50               # Fewer epochs needed for simple model
-    hidden_dim = 64           # Smaller hidden dimension
+    epochs = 50               # Simple model converges fast
+    hidden_dim = 64           # Simple architecture
     device = "cuda" if torch.cuda.is_available() else "cpu"
     
     # Noise schedule
@@ -79,8 +79,8 @@ class Config:
     # Sampling settings - SIMPLIFIED
     sampling_method = 'ddim'  # 'ddim' (fast) or 'ddpm' (slow but potentially better)
     ddim_eta = 1.0            # 1.0 = fully stochastic
-    ddim_steps = 20           # Very few steps for simple model
-    sampling_temperature = 1.0  # Temperature for initial noise
+    ddim_steps = 20           # Fast sampling
+    sampling_temperature = 1.0  # Standard temperature
     
     # Uncertainty calibration
     # Options:
@@ -88,10 +88,14 @@ class Config:
     #   'auto'       - Regime-aware scaling based on recent volatility (fast, default)
     #   'none'       - No scaling
     #   float        - Fixed multiplier (e.g., 1.5)
-    variance_scale = 'auto'  # Use fast regime-aware scaling
+    variance_scale = 'none'  # No post-processing - trust the model
     
     # Diversity noise: Add small noise to final samples
-    diversity_noise_std = 0.1  # Std of noise added in scaled space
+    diversity_noise_std = 0.0  # No artificial noise
+    
+    # Coverage adjustment: Small multiplier applied to path spread 
+    # This helps reach target 90% coverage without heavy post-processing
+    coverage_boost = 1.0  # No boost - trust the model
     
     # Monte Carlo Dropout - DISABLED for speed (was causing 3x slowdown)
     use_mc_dropout = False    # Disable for faster inference
@@ -108,7 +112,7 @@ class Config:
     compile_model = False     # Set True for PyTorch 2.0+ (can speed up 20-30%)
     
     # Monte Carlo Settings
-    num_paths = 100           # Number of simulations for Monte Carlo
+    num_paths = 100           # Number of simulations
     
     # ==========================================
     # WALK-FORWARD CROSS-VALIDATION SETTINGS
@@ -961,7 +965,7 @@ class DiffusionManager:
         noise_schedule = getattr(config, 'noise_schedule', 'sigmoid')
         if noise_schedule == 'sigmoid':
             self.betas = sigmoid_beta_schedule(self.timesteps).to(self.device)
-        else:  # 'cosine'
+        else:
             self.betas = cosine_beta_schedule(self.timesteps).to(self.device)
         self.alphas = 1. - self.betas
         self.alphas_cumprod = torch.cumprod(self.alphas, dim=0)
@@ -1820,8 +1824,6 @@ def evaluate_on_test_windows(model, diffuser, test_dataset, baselines, train_ret
         # ============================================================
         # NO POST-PROCESSING - trust the model
         # ============================================================
-        # The model should learn the correct scale from data
-        # Don't artificially adjust - that was causing problems
         
         gen_vol = np.std(gen_paths)
         recent_vol = np.std(history_raw[-20:]) if len(history_raw) >= 20 else np.std(history_raw)
@@ -1901,305 +1903,766 @@ def print_comparison_table(aggregated_results, fold_name=""):
 # 8. REPORT GENERATION
 # ==========================================
 
-def _generate_results_table_rows(sorted_models: list) -> str:
-    """Generate HTML table rows for model results."""
-    rows = []
-    for rank, (model_name, metrics) in enumerate(sorted_models, 1):
-        highlight = 'class="highlight-row"' if model_name == 'Diffusion' else ''
-        best_marker = ' <span class="best">★</span>' if rank == 1 else ''
-        
-        rows.append(f'''
-            <tr {highlight}>
-                <td>{rank}</td>
-                <td><strong>{model_name}</strong>{best_marker}</td>
-                <td class="mono">{metrics['crps']:.4f}</td>
-                <td class="mono">{metrics['coverage_90']:.1f}%</td>
-                <td class="mono">{metrics['mae']:.4f}</td>
-                <td class="mono">{metrics['vol_ratio']:.2f}x</td>
-            </tr>
-        ''')
-    
-    return '\n'.join(rows)
-
-
-def _generate_fold_table_rows(all_fold_results: list) -> str:
-    """Generate HTML table rows for fold-by-fold results."""
-    rows = []
-    
-    for fold in all_fold_results:
-        fold_num = fold['fold']
-        test_year = fold['test_period']
-        
-        diff_crps = fold['results'].get('Diffusion', {}).get('crps', float('inf'))
-        
-        # Find best baseline
-        best_baseline_name = ''
-        best_baseline_crps = float('inf')
-        for name, metrics in fold['results'].items():
-            if name != 'Diffusion' and metrics['crps'] < best_baseline_crps:
-                best_baseline_crps = metrics['crps']
-                best_baseline_name = name
-        
-        delta = diff_crps - best_baseline_crps
-        delta_class = 'best' if delta < 0 else ''
-        delta_sign = '+' if delta >= 0 else ''
-        
-        rows.append(f'''
-            <tr>
-                <td>Fold {fold_num}</td>
-                <td>{test_year}</td>
-                <td class="mono">{diff_crps:.4f}</td>
-                <td>{best_baseline_name}</td>
-                <td class="mono">{best_baseline_crps:.4f}</td>
-                <td class="mono {delta_class}">{delta_sign}{delta:.4f}</td>
-            </tr>
-        ''')
-    
-    return '\n'.join(rows)
-
-
 def generate_research_report(all_fold_results, final_summary, conf, simulation_data=None, output_path="research_report.html"):
-    """Generate an academic research-style HTML report."""
+    """
+    Generate a professional, comprehensive HTML research report.
     
-    # Prepare data for charts
+    Features:
+    - Executive summary with key metrics
+    - Interactive charts (CRPS comparison, fold performance, radar chart)
+    - Detailed fold-by-fold analysis
+    - Model comparison across multiple metrics
+    - Professional styling matching the forward prediction charts
+    """
+    
+    # Prepare data
     model_names = list(final_summary.keys())
-    crps_values = [final_summary[m]['crps'] for m in model_names]
-    coverage_90_values = [final_summary[m]['coverage_90'] for m in model_names]
-    mae_values = [final_summary[m]['mae'] for m in model_names]
-    vol_ratios = [final_summary[m]['vol_ratio'] for m in model_names]
-    
-    # Calculate rankings
     sorted_by_crps = sorted(final_summary.items(), key=lambda x: x[1]['crps'])
     best_model = sorted_by_crps[0][0]
-    diffusion_rank = next((i+1 for i, (name, _) in enumerate(sorted_by_crps) if name == 'Diffusion'), 'N/A')
     
-    # Extract Diffusion model metrics
-    diffusion_metrics = final_summary.get('Diffusion', {})
-    diffusion_crps = diffusion_metrics.get('crps', 0.0)
-    diffusion_coverage_90 = diffusion_metrics.get('coverage_90', 0.0)
-    diffusion_vol_ratio = diffusion_metrics.get('vol_ratio', 0.0)
+    # Diffusion metrics
+    diff_metrics = final_summary.get('Diffusion', {})
+    diff_crps = diff_metrics.get('crps', 0)
+    diff_crps_std = diff_metrics.get('crps_std', 0)
+    diff_coverage = diff_metrics.get('coverage_90', 0)
+    diff_mae = diff_metrics.get('mae', 0)
+    diff_vol = diff_metrics.get('vol_ratio', 0)
+    diff_rank = next((i+1 for i, (name, _) in enumerate(sorted_by_crps) if name == 'Diffusion'), len(sorted_by_crps))
     
-    # Pre-compute conditional values to avoid f-string parsing issues
-    success_class = 'success' if best_model == 'Diffusion' else ''
-    stat_note_class = 'success' if best_model == 'Diffusion' else 'warning'
-    stat_note_icon = '✓' if best_model == 'Diffusion' else '⚠'
-    outperforming_text = 'outperforming' if best_model == 'Diffusion' else 'compared to'
+    # Win/loss analysis
+    wins = sum(1 for f in all_fold_results 
+               if f['results'].get('Diffusion', {}).get('crps', float('inf')) == 
+               min(v['crps'] for v in f['results'].values()))
+    total_folds = len(all_fold_results)
+    win_rate = wins / total_folds * 100 if total_folds > 0 else 0
     
-    if best_model == 'Diffusion':
-        stat_note_title = 'Diffusion model achieves best CRPS score'
-        stat_note_detail = 'The diffusion model demonstrates superior probabilistic forecasting accuracy compared to all baseline methods.'
-        conclusion_text = 'The results support the utility of diffusion models for probabilistic financial forecasting, outperforming traditional approaches.'
+    # Best baseline
+    best_baseline = sorted_by_crps[1] if len(sorted_by_crps) > 1 and sorted_by_crps[0][0] == 'Diffusion' else sorted_by_crps[0]
+    best_baseline_name = best_baseline[0] if best_baseline[0] != 'Diffusion' else (sorted_by_crps[1][0] if len(sorted_by_crps) > 1 else 'N/A')
+    
+    # Improvement over best baseline
+    if best_model == 'Diffusion' and len(sorted_by_crps) > 1:
+        baseline_crps = sorted_by_crps[1][1]['crps']
+        improvement = (baseline_crps - diff_crps) / baseline_crps * 100
+        improvement_text = f"+{improvement:.1f}% better"
+        status_class = "success"
+        status_icon = "✓"
+        status_text = "OUTPERFORMS BASELINES"
     else:
-        stat_note_title = f'{best_model} outperforms Diffusion model'
-        stat_note_detail = f'The {best_model} baseline achieves lower CRPS. Consider increasing training epochs or tuning hyperparameters.'
-        conclusion_text = 'Further hyperparameter tuning and extended training may improve diffusion model performance relative to classical baselines.'
-    
-    num_folds = len(all_fold_results)
-    
-    # Prepare simulation chart data
-    sim_chart_data = ""
-    if simulation_data and 'prices' in simulation_data:
-        # Convert numpy arrays to list for JSON serialization
-        prices = simulation_data['prices']
-        if hasattr(prices, 'tolist'):
-            prices = prices.tolist()
-            
-        sim_chart_data = json.dumps({
-            'prices': prices,
-            'history': simulation_data.get('history', []),
-            'dates': simulation_data.get('dates', []),
-        })
-    
-    # Prepare fold performance data
-    fold_performance_json = json.dumps([{
-        'fold': f['fold'],
-        'test_year': f['test_period'],
-        'diffusion_crps': f['results'].get('Diffusion', {}).get('crps', 0),
-        'best_baseline_crps': min([v['crps'] for k, v in f['results'].items() if k != 'Diffusion'] or [0])
-    } for f in all_fold_results])
-    
-    # Model comparison data
-    comparison_data = json.dumps({
-        'models': model_names,
-        'crps': crps_values,
-        'coverage_90': coverage_90_values,
-        'mae': mae_values,
-        'vol_ratio': vol_ratios
-    })
+        baseline_crps = sorted_by_crps[0][1]['crps']
+        improvement = (diff_crps - baseline_crps) / diff_crps * 100 if diff_crps > 0 else 0
+        improvement_text = f"-{improvement:.1f}% vs best"
+        status_class = "warning"
+        status_icon = "⚠"
+        status_text = "UNDERPERFORMS"
     
     generation_date = datetime.now().strftime("%B %d, %Y")
     generation_time = datetime.now().strftime("%H:%M:%S")
     
-    # FIX: Pre-compute values that were causing unhashable dict errors
-    vol_reality_text = 'realistic' if 0.8 <= diffusion_vol_ratio <= 1.2 else 'miscalibrated'
-    consistency_text = 'remains consistent' if len(all_fold_results) > 3 else 'tested'
+    # Prepare chart data as JSON
+    comparison_data = json.dumps({
+        'models': [m[0] for m in sorted_by_crps],
+        'crps': [m[1]['crps'] for m in sorted_by_crps],
+        'coverage': [m[1]['coverage_90'] for m in sorted_by_crps],
+        'mae': [m[1]['mae'] for m in sorted_by_crps],
+        'vol_ratio': [m[1]['vol_ratio'] for m in sorted_by_crps],
+    })
     
-    # FIX: Handle the Javascript conditional brace
-    sim_data_block_start = ""
-    sim_data_block_end = ""
-    if simulation_data:
-        sim_data_block_start = f'''
-        const simData = {sim_chart_data};
-        if (simData && simData.history && simData.history.length > 0) {{
-            histPrices = simData.history;
-            simPaths = simData.prices;
-        }} else {{
+    # Prepare forward simulation data if available
+    forward_prediction_html = ""
+    forward_prediction_js = ""
+    if simulation_data is not None:
+        future_dates = simulation_data['future_dates']
+        mean_path = simulation_data['mean_path']
+        median_path = simulation_data['median_path']
+        p5 = simulation_data['p5']
+        p95 = simulation_data['p95']
+        last_price = simulation_data['last_price']
+        last_date = simulation_data['last_date']
+        prob_positive = simulation_data['prob_positive']
+        var_95 = simulation_data['var_95']
+        
+        # Convert dates to strings for JSON
+        date_strings = [d.strftime('%Y-%m-%d') for d in future_dates]
+        
+        forward_data = json.dumps({
+            'dates': date_strings,
+            'mean': mean_path.tolist(),
+            'median': median_path.tolist(),
+            'p5': p5.tolist(),
+            'p95': p95.tolist(),
+            'last_price': float(last_price),
+            'last_date': last_date.strftime('%Y-%m-%d'),
+        })
+        
+        final_return = (median_path[-1] / last_price - 1) * 100
+        sentiment = "BULLISH 📈" if prob_positive > 60 else "BEARISH 📉" if prob_positive < 40 else "NEUTRAL ➡️"
+        sentiment_color = "var(--accent-green)" if prob_positive > 60 else "var(--accent-red)" if prob_positive < 40 else "var(--accent-orange)"
+        
+        forward_prediction_html = f'''
+        <!-- Forward Prediction Section -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🔮</span> Forward Market Prediction</h2>
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: {sentiment_color};">${median_path[-1]:.2f}</div>
+                    <div class="metric-label">64-Day Target (Median)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{final_return:+.1f}%</div>
+                    <div class="metric-label">Expected Return</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{prob_positive:.0f}%</div>
+                    <div class="metric-label">P(Positive Return)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">{var_95:+.1f}%</div>
+                    <div class="metric-label">95% VaR</div>
+                </div>
+            </div>
+            <div class="chart-container" style="margin-top: 1.5rem;">
+                <div class="chart-title">📊 {conf.ticker} Price Forecast — Next 64 Trading Days</div>
+                <div id="forwardChart" style="height: 400px;"></div>
+            </div>
+            <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: var(--bg-card); border-radius: 8px;">
+                <span style="font-size: 1.5rem; font-weight: 600; color: {sentiment_color};">
+                    Model Sentiment: {sentiment}
+                </span>
+            </div>
+        </div>
         '''
-        sim_data_block_end = "}"
+        
+        forward_prediction_js = f'''
+        // Forward Prediction Chart
+        const forwardData = {forward_data};
+        
+        const forwardTrace1 = {{
+            x: forwardData.dates,
+            y: forwardData.p95,
+            type: 'scatter',
+            mode: 'lines',
+            name: '95th Percentile',
+            line: {{ color: 'rgba(0, 186, 124, 0.3)', width: 0 }},
+            showlegend: false
+        }};
+        
+        const forwardTrace2 = {{
+            x: forwardData.dates,
+            y: forwardData.p5,
+            type: 'scatter',
+            mode: 'lines',
+            name: '90% Confidence',
+            fill: 'tonexty',
+            fillcolor: 'rgba(0, 186, 124, 0.2)',
+            line: {{ color: 'rgba(0, 186, 124, 0.3)', width: 0 }},
+        }};
+        
+        const forwardTrace3 = {{
+            x: forwardData.dates,
+            y: forwardData.mean,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Mean Forecast',
+            line: {{ color: '#1d9bf0', width: 2 }}
+        }};
+        
+        const forwardTrace4 = {{
+            x: forwardData.dates,
+            y: forwardData.median,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Median Forecast',
+            line: {{ color: '#00ba7c', width: 3 }}
+        }};
+        
+        const startLine = {{
+            x: [forwardData.dates[0], forwardData.dates[0]],
+            y: [Math.min(...forwardData.p5) * 0.98, Math.max(...forwardData.p95) * 1.02],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Current Price: $' + forwardData.last_price.toFixed(2),
+            line: {{ color: '#6e7681', width: 2, dash: 'dash' }}
+        }};
+        
+        Plotly.newPlot('forwardChart', [forwardTrace1, forwardTrace2, forwardTrace3, forwardTrace4, startLine], {{
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: {{ color: '#e7e9ea' }},
+            margin: {{ t: 30, r: 30, b: 50, l: 60 }},
+            xaxis: {{
+                gridcolor: '#2f3542',
+                tickangle: -30,
+                title: 'Date'
+            }},
+            yaxis: {{
+                gridcolor: '#2f3542',
+                title: 'Price ($)',
+                tickprefix: '$'
+            }},
+            legend: {{
+                orientation: 'h',
+                y: -0.15
+            }},
+            hovermode: 'x unified',
+            hoverlabel: {{
+                bgcolor: '#1a1f2e',
+                bordercolor: '#2f3542',
+                font: {{ color: '#e7e9ea', size: 13 }}
+            }}
+        }}, {{responsive: true}});
+        '''
+    
+    fold_data = json.dumps([{
+        'fold': f['fold'],
+        'year': f['test_period'],
+        'diffusion': f['results'].get('Diffusion', {}).get('crps', 0),
+        'best_baseline': min([v['crps'] for k, v in f['results'].items() if k != 'Diffusion'] or [0]),
+        'winner': 'Diffusion' if f['results'].get('Diffusion', {}).get('crps', float('inf')) <= 
+                  min([v['crps'] for k, v in f['results'].items() if k != 'Diffusion'] or [float('inf')]) else 'Baseline'
+    } for f in all_fold_results])
+    
+    # Generate model rows HTML
+    model_rows = ""
+    for rank, (model_name, metrics) in enumerate(sorted_by_crps, 1):
+        is_diffusion = model_name == 'Diffusion'
+        row_class = 'diffusion-row' if is_diffusion else ''
+        badge = '<span class="winner-badge">👑 BEST</span>' if rank == 1 else ''
+        
+        model_rows += f'''
+        <tr class="{row_class}">
+            <td><span class="rank-badge">#{rank}</span></td>
+            <td><strong>{model_name}</strong> {badge}</td>
+                <td class="mono">{metrics['crps']:.4f}</td>
+                <td class="mono">{metrics['coverage_90']:.1f}%</td>
+                <td class="mono">{metrics['mae']:.4f}</td>
+                <td class="mono">{metrics['vol_ratio']:.2f}x</td>
+        </tr>'''
+    
+    # Generate fold rows HTML
+    fold_rows = ""
+    for f in all_fold_results:
+        diff_crps_fold = f['results'].get('Diffusion', {}).get('crps', float('inf'))
+        baseline_crps_fold = min([v['crps'] for k, v in f['results'].items() if k != 'Diffusion'] or [float('inf')])
+        best_baseline_fold = min([(k, v['crps']) for k, v in f['results'].items() if k != 'Diffusion'], key=lambda x: x[1], default=('N/A', 0))
+        
+        delta = diff_crps_fold - baseline_crps_fold
+        delta_class = 'positive' if delta < 0 else 'negative'
+        winner_icon = '✓' if delta < 0 else '✗'
+        
+        fold_rows += f'''
+        <tr>
+            <td>Fold {f['fold']}</td>
+            <td>{f['test_period']}</td>
+            <td class="mono">{diff_crps_fold:.4f}</td>
+            <td>{best_baseline_fold[0]}</td>
+            <td class="mono">{baseline_crps_fold:.4f}</td>
+            <td class="mono {delta_class}">{delta:+.4f} {winner_icon}</td>
+        </tr>'''
 
-    # HTML Content
     html = f'''<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Market Diffusion Model: Walk-Forward Cross-Validation Study</title>
+    <title>Market Diffusion Model — Research Report</title>
     <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500&family=Source+Sans+3:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        :root {{ --bg-paper: #fdfbf7; --bg-white: #ffffff; --text-primary: #1a1a2e; --text-secondary: #4a4a68; --text-muted: #6b6b8a; --accent-primary: #2d3a8c; --accent-secondary: #5c6bc0; --accent-success: #2e7d32; --accent-warning: #ed6c02; --accent-error: #c62828; --border-light: #e8e4dc; --border-medium: #d4cfc4; --shadow-soft: 0 2px 8px rgba(0,0,0,0.06); }}
-        body {{ font-family: 'Source Sans 3', sans-serif; background: var(--bg-paper); color: var(--text-primary); line-height: 1.7; font-size: 17px; margin: 0; padding: 0; }}
-        .paper-container {{ max-width: 900px; margin: 0 auto; padding: 3rem 2rem; }}
-        header.paper-header {{ text-align: center; margin-bottom: 3rem; padding-bottom: 2rem; border-bottom: 2px solid var(--border-medium); }}
-        .paper-title {{ font-family: 'Crimson Pro', serif; font-size: 2.4rem; font-weight: 600; margin-bottom: 1.5rem; }}
-        .paper-subtitle {{ font-family: 'Crimson Pro', serif; font-size: 1.3rem; font-style: italic; color: var(--text-secondary); margin-bottom: 1.5rem; }}
-        .paper-badge {{ display: inline-block; background: var(--accent-primary); color: white; padding: 0.4rem 1rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; margin-top: 1rem; }}
-        h2.section-title {{ font-family: 'Crimson Pro', serif; font-size: 1.6rem; font-weight: 600; margin-bottom: 1.5rem; border-bottom: 1px solid var(--border-light); padding-bottom: 0.5rem; }}
-        .section-number {{ color: var(--accent-primary); margin-right: 0.5rem; }}
-        h3.subsection-title {{ font-family: 'Source Sans 3', sans-serif; font-size: 1.15rem; font-weight: 600; margin: 1.5rem 0 1rem; }}
-        .abstract-box {{ background: var(--bg-white); border: 1px solid var(--border-medium); border-left: 4px solid var(--accent-primary); padding: 1.5rem 2rem; margin: 1.5rem 0; box-shadow: var(--shadow-soft); }}
-        .key-findings {{ display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }}
-        .finding-card {{ background: var(--bg-white); border: 1px solid var(--border-light); padding: 1.25rem; text-align: center; box-shadow: var(--shadow-soft); }}
-        .finding-value {{ font-family: 'IBM Plex Mono', monospace; font-size: 1.8rem; font-weight: 600; color: var(--accent-primary); }}
-        .finding-card.success .finding-value {{ color: var(--accent-success); }}
-        .finding-card.warning .finding-value {{ color: var(--accent-warning); }}
-        table.data-table {{ width: 100%; border-collapse: collapse; font-size: 0.9rem; background: var(--bg-white); box-shadow: var(--shadow-soft); margin: 1.5rem 0; }}
-        table.data-table th {{ background: var(--accent-primary); color: white; padding: 0.8rem 1rem; text-align: left; }}
-        table.data-table td {{ padding: 0.75rem 1rem; border-bottom: 1px solid var(--border-light); }}
-        .chart-container {{ background: var(--bg-white); border: 1px solid var(--border-light); padding: 1.5rem; margin: 1.5rem 0; box-shadow: var(--shadow-soft); }}
-        .stat-note {{ display: flex; gap: 1rem; padding: 1rem; background: #fef9e7; border: 1px solid #f9e79f; margin: 1rem 0; font-size: 0.9rem; }}
-        .stat-note.success {{ background: #e8f5e9; border-color: #a5d6a7; }}
-        footer.paper-footer {{ margin-top: 3rem; padding-top: 2rem; border-top: 2px solid var(--border-medium); text-align: center; font-size: 0.85rem; color: var(--text-muted); }}
+        :root {{
+            --bg-dark: #0f1419;
+            --bg-card: #1a1f2e;
+            --bg-card-hover: #242b3d;
+            --text-primary: #e7e9ea;
+            --text-secondary: #8b98a5;
+            --text-muted: #6e7681;
+            --accent-blue: #1d9bf0;
+            --accent-green: #00ba7c;
+            --accent-red: #f4212e;
+            --accent-orange: #ff7a00;
+            --accent-purple: #7856ff;
+            --border-color: #2f3542;
+            --gradient-blue: linear-gradient(135deg, #1d9bf0 0%, #7856ff 100%);
+            --gradient-green: linear-gradient(135deg, #00ba7c 0%, #00d68f 100%);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.3);
+        }}
+        
+        * {{ margin: 0; padding: 0; box-sizing: border-box; }}
+        
+        body {{
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }}
+        
+        .container {{
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }}
+        
+        /* Header */
+        .header {{
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }}
+        
+        .header h1 {{
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-blue);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }}
+        
+        .header .subtitle {{
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }}
+        
+        .header .meta {{
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }}
+        
+        .badge {{
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }}
+        
+        .badge-blue {{ background: rgba(29, 155, 240, 0.2); color: var(--accent-blue); }}
+        .badge-green {{ background: rgba(0, 186, 124, 0.2); color: var(--accent-green); }}
+        .badge-orange {{ background: rgba(255, 122, 0, 0.2); color: var(--accent-orange); }}
+        
+        /* Executive Summary Cards */
+        .summary-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }}
+        
+        .summary-card {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }}
+        
+        .summary-card:hover {{
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }}
+        
+        .summary-card .value {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }}
+        
+        .summary-card .label {{
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }}
+        
+        .summary-card.success .value {{ color: var(--accent-green); }}
+        .summary-card.warning .value {{ color: var(--accent-orange); }}
+        .summary-card.info .value {{ color: var(--accent-blue); }}
+        
+        /* Status Banner */
+        .status-banner {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }}
+        
+        .status-banner.success {{ border-left: 4px solid var(--accent-green); }}
+        .status-banner.warning {{ border-left: 4px solid var(--accent-orange); }}
+        
+        .status-icon {{
+            font-size: 2rem;
+        }}
+        
+        .status-content h3 {{
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }}
+        
+        .status-content p {{
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }}
+        
+        /* Section */
+        .section {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }}
+        
+        .section-title {{
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }}
+        
+        .section-title .icon {{
+            font-size: 1.2rem;
+        }}
+        
+        /* Tables */
+        .data-table {{
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }}
+        
+        .data-table th {{
+            background: var(--bg-dark);
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }}
+        
+        .data-table td {{
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }}
+        
+        .data-table tr:hover {{
+            background: var(--bg-card-hover);
+        }}
+        
+        .data-table .diffusion-row {{
+            background: rgba(29, 155, 240, 0.1);
+        }}
+        
+        .data-table .mono {{
+            font-family: 'JetBrains Mono', monospace;
+        }}
+        
+        .rank-badge {{
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--bg-dark);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }}
+        
+        .winner-badge {{
+            background: var(--gradient-green);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }}
+        
+        .positive {{ color: var(--accent-green); }}
+        .negative {{ color: var(--accent-red); }}
+        
+        /* Charts */
+        .chart-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }}
+        
+        .chart-container {{
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+        }}
+        
+        .chart-title {{
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }}
+        
+        /* Footer */
+        .footer {{
+            text-align: center;
+            padding: 2rem 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }}
+        
+        /* Responsive */
+        @media (max-width: 768px) {{
+            .container {{ padding: 1rem; }}
+            .header h1 {{ font-size: 1.8rem; }}
+            .summary-grid {{ grid-template-columns: repeat(2, 1fr); }}
+            .chart-grid {{ grid-template-columns: 1fr; }}
+        }}
     </style>
 </head>
 <body>
-    <div class="paper-container">
-        <header class="paper-header">
-            <h1 class="paper-title">Diffusion Models for Financial Time Series</h1>
-            <p class="paper-subtitle">Walk-Forward Cross-Validation Report</p>
-            <div class="paper-meta">
-                <p><strong>Target:</strong> {conf.ticker} | <strong>Period:</strong> {conf.data_start} — 2024</p>
-                <p><strong>Generated:</strong> {generation_date}</p>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📊 Market Diffusion Model</h1>
+            <p class="subtitle">Walk-Forward Cross-Validation Research Report</p>
+            <div class="meta">
+                <span><strong>Target:</strong> {conf.ticker}</span>
+                <span><strong>Period:</strong> {conf.data_start} — 2025</span>
+                <span><strong>Folds:</strong> {total_folds}</span>
+                <span><strong>Generated:</strong> {generation_date}</span>
             </div>
-            <span class="paper-badge">{len(all_fold_results)} FOLDS</span>
         </header>
         
-        <section id="abstract">
-            <div class="abstract-box">
-                <h3>Abstract</h3>
-                <p>
-                    This study evaluates a conditional diffusion model for financial time series forecasting.
-                    Results indicate that the diffusion model achieves a mean CRPS of 
-                    <strong>{diffusion_crps:.4f}</strong> with {diffusion_coverage_90:.1f}% coverage, 
-                    {outperforming_text} baseline methods.
-                </p>
+        <!-- Executive Summary -->
+        <div class="summary-grid">
+            <div class="summary-card {'success' if diff_rank == 1 else 'info'}">
+                <div class="value">#{diff_rank}</div>
+                <div class="label">Overall Rank</div>
             </div>
-            
-            <div class="key-findings">
-                <div class="finding-card {success_class}">
-                    <div class="finding-value">#{diffusion_rank}</div>
-                    <div class="finding-label">Rank (CRPS)</div>
+            <div class="summary-card info">
+                <div class="value">{diff_crps:.4f}</div>
+                <div class="label">Mean CRPS</div>
                 </div>
-                <div class="finding-card">
-                    <div class="finding-value">{diffusion_coverage_90:.1f}%</div>
-                    <div class="finding-label">90% Coverage</div>
+            <div class="summary-card {'success' if diff_coverage > 80 else 'warning'}">
+                <div class="value">{diff_coverage:.1f}%</div>
+                <div class="label">90% Coverage</div>
                 </div>
-                <div class="finding-card">
-                    <div class="finding-value">{diffusion_vol_ratio:.2f}x</div>
-                    <div class="finding-label">Vol Ratio</div>
+            <div class="summary-card {'success' if 0.8 <= diff_vol <= 1.2 else 'warning'}">
+                <div class="value">{diff_vol:.2f}x</div>
+                <div class="label">Vol Ratio</div>
                 </div>
+            <div class="summary-card {'success' if win_rate > 50 else 'warning'}">
+                <div class="value">{wins}/{total_folds}</div>
+                <div class="label">Folds Won</div>
             </div>
-        </section>
+            <div class="summary-card info">
+                <div class="value">{win_rate:.0f}%</div>
+                <div class="label">Win Rate</div>
+            </div>
+        </div>
         
-        <section id="results">
-            <h2 class="section-title"><span class="section-number">§2</span> Results</h2>
-            
+        <!-- Status Banner -->
+        <div class="status-banner {status_class}">
+            <div class="status-icon">{status_icon}</div>
+            <div class="status-content">
+                <h3>Diffusion Model {status_text}</h3>
+                <p>{'The diffusion model achieves the best CRPS score, demonstrating superior probabilistic forecasting.' if best_model == 'Diffusion' else f'The {best_baseline_name} baseline currently outperforms. {improvement_text} on CRPS.'}</p>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="chart-grid">
+            <div class="chart-container">
+                <div class="chart-title">📈 CRPS by Model (Lower is Better)</div>
+                <div id="crpsChart" style="height: 300px;"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">📊 Fold-by-Fold Performance</div>
+                <div id="foldChart" style="height: 300px;"></div>
+            </div>
+        </div>
+        
+        <!-- Model Comparison Table -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🏆</span> Model Rankings</h2>
             <table class="data-table">
-                <caption>Aggregated Performance</caption>
                 <thead>
                     <tr>
                         <th>Rank</th>
                         <th>Model</th>
                         <th>CRPS ↓</th>
-                        <th>Coverage</th>
+                        <th>90% Coverage</th>
                         <th>MAE</th>
                         <th>Vol Ratio</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {_generate_results_table_rows(sorted_by_crps)}
+                    {model_rows}
                 </tbody>
             </table>
-            
-            <div class="stat-note {stat_note_class}">
-                <span class="note-icon">{stat_note_icon}</span>
-                <div>
-                    <strong>{stat_note_title}</strong><br>
-                    {stat_note_detail}
-                </div>
             </div>
             
-            <div class="chart-container">
-                <div id="modelComparisonChart" style="width:100%;height:400px;"></div>
-            </div>
-            
+        <!-- Fold Results Table -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📋</span> Fold-by-Fold Results</h2>
             <table class="data-table">
-                <caption>Fold Results</caption>
                 <thead>
                     <tr>
                         <th>Fold</th>
-                        <th>Year</th>
-                        <th>Diff CRPS</th>
-                        <th>Best Base</th>
-                        <th>Base CRPS</th>
-                        <th>Δ</th>
+                        <th>Test Year</th>
+                        <th>Diffusion CRPS</th>
+                        <th>Best Baseline</th>
+                        <th>Baseline CRPS</th>
+                        <th>Δ (Diff - Base)</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {_generate_fold_table_rows(all_fold_results)}
+                    {fold_rows}
                 </tbody>
             </table>
-        </section>
+        </div>
         
-        <section id="conclusion">
-            <h2 class="section-title"><span class="section-number">§3</span> Conclusion</h2>
-            <ul style="margin: 1rem 0 1rem 2rem;">
-                <li>Diffusion model ranks <strong>#{diffusion_rank}</strong>.</li>
-                <li>Achieved <strong>{diffusion_coverage_90:.1f}%</strong> coverage.</li>
-                <li>Volatility ratio of <strong>{diffusion_vol_ratio:.2f}x</strong> is {vol_reality_text}.</li>
-                <li>Performance {consistency_text} across regimes.</li>
+        {forward_prediction_html}
+        
+        <!-- Key Insights -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">💡</span> Key Insights</h2>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <strong>Performance:</strong> Diffusion model ranks <span class="badge badge-blue">#{diff_rank}</span> with CRPS of {diff_crps:.4f} ± {diff_crps_std:.4f}
+                </li>
+                <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <strong>Calibration:</strong> {'Well-calibrated' if 0.85 <= diff_vol <= 1.15 else 'Needs calibration'} — Vol ratio of {diff_vol:.2f}x {'(target: 1.0x)' if abs(diff_vol - 1.0) > 0.15 else '✓'}
+                </li>
+                <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <strong>Coverage:</strong> {diff_coverage:.1f}% of actuals fall within 90% CI {'(good)' if diff_coverage > 80 else '(needs improvement)'}
+                </li>
+                <li style="padding: 0.5rem 0;">
+                    <strong>Consistency:</strong> Won {wins}/{total_folds} folds ({win_rate:.0f}% win rate)
+                </li>
             </ul>
-            <p>{conclusion_text}</p>
-        </section>
+        </div>
         
-        <footer class="paper-footer">
-            <p>Generated on {generation_date}</p>
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Generated by Market Diffusion Model • {generation_date} at {generation_time}</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem;">
+                ⚠️ This is a statistical model for research purposes. Not financial advice.
+            </p>
         </footer>
     </div>
     
     <script>
         const comparisonData = {comparison_data};
+        const foldData = {fold_data};
         
-        Plotly.newPlot('modelComparisonChart', [{{
+        // CRPS Bar Chart
+        const crpsColors = comparisonData.models.map(m => 
+            m === 'Diffusion' ? '#1d9bf0' : '#6e7681'
+        );
+        
+        Plotly.newPlot('crpsChart', [{{
             x: comparisonData.models,
             y: comparisonData.crps,
             type: 'bar',
-            marker: {{ color: '#2d3a8c' }}
-        }}]);
+            marker: {{ 
+                color: crpsColors,
+                line: {{ color: 'rgba(255,255,255,0.1)', width: 1 }}
+            }},
+            text: comparisonData.crps.map(v => v.toFixed(4)),
+            textposition: 'outside',
+            textfont: {{ color: '#e7e9ea', size: 11 }}
+        }}], {{
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: {{ color: '#8b98a5', family: 'Inter' }},
+            margin: {{ t: 20, b: 60, l: 50, r: 20 }},
+            xaxis: {{ 
+                gridcolor: '#2f3542',
+                tickfont: {{ size: 11 }}
+            }},
+            yaxis: {{ 
+                gridcolor: '#2f3542',
+                title: 'CRPS',
+                tickfont: {{ size: 11 }}
+            }},
+            hoverlabel: {{
+                bgcolor: '#1a1f2e',
+                bordercolor: '#2f3542',
+                font: {{ color: '#e7e9ea', size: 13 }}
+            }}
+        }}, {{ responsive: true, displayModeBar: false }});
         
-        {sim_data_block_start}
-            // Simulation data loaded
-        {sim_data_block_end}
+        // Fold Performance Chart
+        Plotly.newPlot('foldChart', [
+            {{
+                x: foldData.map(f => f.year),
+                y: foldData.map(f => f.diffusion),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Diffusion',
+                line: {{ color: '#1d9bf0', width: 2 }},
+                marker: {{ size: 8 }}
+            }},
+            {{
+                x: foldData.map(f => f.year),
+                y: foldData.map(f => f.best_baseline),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Best Baseline',
+                line: {{ color: '#ff7a00', width: 2, dash: 'dash' }},
+                marker: {{ size: 8 }}
+            }}
+        ], {{
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: {{ color: '#8b98a5', family: 'Inter' }},
+            margin: {{ t: 20, b: 60, l: 50, r: 20 }},
+            xaxis: {{ 
+                gridcolor: '#2f3542',
+                title: 'Test Year',
+                tickfont: {{ size: 11 }}
+            }},
+            yaxis: {{ 
+                gridcolor: '#2f3542',
+                title: 'CRPS',
+                tickfont: {{ size: 11 }}
+            }},
+            legend: {{
+                orientation: 'h',
+                y: -0.2,
+                x: 0.5,
+                xanchor: 'center'
+            }},
+            showlegend: true,
+            hoverlabel: {{
+                bgcolor: '#1a1f2e',
+                bordercolor: '#2f3542',
+                font: {{ color: '#e7e9ea', size: 13 }}
+            }}
+        }}, {{ responsive: true, displayModeBar: false }});
+        
+        {forward_prediction_js}
     </script>
 </body>
 </html>'''
@@ -2209,6 +2672,16 @@ def generate_research_report(all_fold_results, final_summary, conf, simulation_d
     
     print(f"\n📄 Research report saved to '{output_path}'")
     return output_path
+
+
+def _generate_results_table_rows(sorted_models):
+    """Legacy function - kept for compatibility."""
+    return ""
+
+
+def _generate_fold_table_rows(all_fold_results):
+    """Legacy function - kept for compatibility."""
+    return ""
 
 def main():
     """
@@ -2457,22 +2930,22 @@ def main():
                 print(f"  Diffusion vs {model_name:<15}: p={p_value:.4f} {sig:3} | Winner: {winner} (+{improvement:.1f}%)")
     
     # ==========================================
-    # 7. GENERATE VISUALIZATION
-    # ==========================================
-    generate_research_report(all_fold_results, final_summary, conf)
-    
-    print("\n" + "="*80)
-    print("WALK-FORWARD CROSS-VALIDATION COMPLETE")
-    print("="*80)
-    
-    # ==========================================
-    # 8. GENERATE FORWARD PREDICTION
+    # 7. GENERATE FORWARD PREDICTION (before report so we can include it)
     # ==========================================
     print("\n" + "="*80)
     print("GENERATING FORWARD MARKET PREDICTION")
     print("="*80)
     
-    generate_forward_prediction(df_full, conf)
+    simulation_data = generate_forward_prediction(df_full, conf)
+    
+    # ==========================================
+    # 8. GENERATE RESEARCH REPORT (with simulation data)
+    # ==========================================
+    generate_research_report(all_fold_results, final_summary, conf, simulation_data=simulation_data)
+    
+    print("\n" + "="*80)
+    print("WALK-FORWARD CROSS-VALIDATION COMPLETE")
+    print("="*80)
 
 
 def generate_forward_prediction(df_full, conf, num_paths=1000):
@@ -2526,6 +2999,12 @@ def generate_forward_prediction(df_full, conf, num_paths=1000):
     
     # Inverse transform
     gen_paths = gen_paths_scaled * scaler.scale_[0] + scaler.mean_[0]
+    
+    # Apply coverage boost (same as evaluation)
+    coverage_boost = getattr(conf, 'coverage_boost', 1.0)
+    if coverage_boost != 1.0:
+        path_mean = np.mean(gen_paths, axis=0, keepdims=True)
+        gen_paths = path_mean + (gen_paths - path_mean) * coverage_boost
     
     # Also generate Random Walk baseline for comparison
     hist_mean = np.mean(df_full['returns'].values)
