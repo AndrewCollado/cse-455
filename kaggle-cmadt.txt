@@ -1,2 +1,0 @@
-https://www.kaggle.com/datasets/eswaranmuthu/u-s-economic-vital-signs-25-years-of-macro-data
-https://www.kaggle.com/datasets/svaningelgem/nasdaq-daily-stock-prices

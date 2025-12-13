@@ -1,0 +1,108 @@
+\documentclass[final]{article}
+
+\usepackage{nips_2017}
+\usepackage[utf8]{inputenc} % allow utf-8 input
+\usepackage[T1]{fontenc}    % use 8-bit T1 fonts
+\usepackage{hyperref}       % hyperlinks
+\usepackage{url}            % simple URL typesetting
+\usepackage{booktabs}       % professional-quality tables
+\usepackage{amsfonts}       % blackboard math symbols
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{float}
+
+\title{Synthetic Market Data Generation for Financial Forecasting Models}
+
+
+\author{
+  Lorenzo~Price, Gavin~Leema and Andrew~Collado\\
+  Group \#: 7 \\
+  Department of Computer Science and Engineering\\
+  University at Buffalo\\
+  Buffalo, NY 14203 \\
+  \texttt{\{lorenzop;gmleema;arcollad\}@buffalo.edu} \\
+}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+  The abstract must be limited to one paragraph and should summarize the entire document, briefly stating your problem definition, your methodology, the nature of the dataset tested on and lastly how you evaluated your methodology. Should be no more than 300 lines.
+\end{abstract}
+
+{\section{Introduction}}\label{sec:intro}
+Describe the problem you are solving and explain its relevance to society in general. Why should anyone care about this problem? Next briefly explain the merits of your proposed approach. Why are you approaching the problem in this manner and not using some other known strategies? \\
+
+\section{Related works}\label{sec:past}
+Give an overview of what have others in the field have done relating to this problem either using similar datasets or similar approaches? Is your work an extension of someone else's? If so, what is different about your approach? Reference at least five other related papers. Here are examples of using citations in latex \cite{deceptionCues03}. Then the second \cite{EnosBCGHS06} and the third \cite{GraciarenaSSEHK06}. How is your approach similar or different from those you have listed?
+
+\section{Data}
+Also, as a part of this section, provide a detailed description of the nature of the data you worked on. What type of data is it? How or where did you get the data? How much will you have access to and will you be able to successfully evaluate your work with it (i.e.~the types of labels/annotations that exist on the dataset)? Did you have to do any preprocessing, filtering, or other special treatment to use this data in your project? If this is from another project or paper, include appropriate references. If you are downloading it, say from \emph{github}, add a link to the location of the data on-line and a brief description of what its original use.
+
+\subsection{Visual data}
+This is just a demonstration of incorporating multiple images within one structure to show how to use tabular columns within graphics environment.
+\begin{figure}[H]
+	%\vspace*{-7mm}
+	\centering
+	\begin{tabular}{cc}
+		\includegraphics[width=0.5\linewidth]{image1} &
+		\includegraphics[width=0.5\linewidth]{image2} \\
+		(a) Image 1: colored network &
+		(b) Image 2: monochrome network \\
+	\end{tabular}
+	\caption{Two neural network diagrams colored differently}\label{img:2nns}
+\end{figure}
+
+\subsection{Audio data}
+This is another subsection but here we introduce how to use tables such as in Table \ref{tab:table1} below. This is very common in the evaluation or results sections.
+%
+\begin{table}[H]
+\centering
+\caption{An example of a table reporting results.}\label{tab:table1}
+	\begin{tabular}{|cccccc|}
+		\hline
+		Group & One     & Two     & Three    & Four     & Sum      \\ \hline\hline
+		Red   & 1000.00 & 2000.00 &  3000.00 &  4000.00 & 10000.00 \\ \hline
+		Green & 2000.00 & 3000.00 &  4000.00 &  5000.00 & 14000.00 \\ \hline
+		Blue  & 3000.00 & 4000.00 &  5000.00 &  6000.00 & 18000.00 \\ \hline\hline
+		Sum   & 6000.00 & 9000.00 & 12000.00 & 15000.00 & 42000.00 \\ \hline\hline
+	\end{tabular}
+\end{table}
+
+
+\section{Methods}\label{sec:approach}
+Discuss your approach for solving the problem that you set up in the introduction. Why is your approach the right thing to do? Did you consider alternative approaches? You should demonstrate that you have applied ideas and skills built up during the semester to tackling your problem of choice. It may be helpful to include figures, diagrams, or tables to describe your method or compare it with other methods.
+
+
+\section{Experiments and Results}\label{sec:expts}
+Discuss the experiments that you performed to demonstrate that your approach solves the problem. The exact experiments will vary depending on the project, but you might compare with previously published methods, perform an ablation study to determine the impact of various components of your system, experiment with different hyperparameters or architectural choices, use visualization techniques to gain insight into how your model works, discuss common failure modes of your model, etc. Describe any evaluation methods used here including different metrics that you use to confirm that your technique really does work well. Present any numbers, tables or graphs here, to illustrate your experimental results.
+
+\begin{figure}[H]
+	\centering
+	\includegraphics[width=0.5\linewidth]{learning}
+	\caption{Sample figure showing the training and validation errors from a learning system.}
+	\label{fig:aus}
+\end{figure}
+
+
+\section{Conclusion and future work}\label{sec:concl}
+Summarize your key results - what have you learned? What are your conclusions from the entire process; what did you leave undone and why? If someone else was going to pick up where you left off, what will be the most important aspects they should focus on? In general, suggest ideas for future extensions or new applications of your idea.  \medskip
+
+\small
+%Your references will be automatically populated here as long as you enter them correctly into your .bib file. An example is attached
+\bibliographystyle{plainnat}
+\bibliography{Report_template}
+
+\end{document}
+
+
+
+
+
+
+
+
+
+
+

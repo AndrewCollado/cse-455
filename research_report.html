@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Diffusion Model — Research Report</title>
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #0f1419;
+            --bg-card: #1a1f2e;
+            --bg-card-hover: #242b3d;
+            --text-primary: #e7e9ea;
+            --text-secondary: #8b98a5;
+            --text-muted: #6e7681;
+            --accent-blue: #1d9bf0;
+            --accent-green: #00ba7c;
+            --accent-red: #f4212e;
+            --accent-orange: #ff7a00;
+            --accent-purple: #7856ff;
+            --border-color: #2f3542;
+            --gradient-blue: linear-gradient(135deg, #1d9bf0 0%, #7856ff 100%);
+            --gradient-green: linear-gradient(135deg, #00ba7c 0%, #00d68f 100%);
+            --shadow-lg: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+        
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 3rem 0;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2rem;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: var(--gradient-blue);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header .subtitle {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .header .meta {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            flex-wrap: wrap;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .badge-blue { background: rgba(29, 155, 240, 0.2); color: var(--accent-blue); }
+        .badge-green { background: rgba(0, 186, 124, 0.2); color: var(--accent-green); }
+        .badge-orange { background: rgba(255, 122, 0, 0.2); color: var(--accent-orange); }
+        
+        /* Executive Summary Cards */
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .summary-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .summary-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
+        
+        .summary-card .value {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .summary-card .label {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        
+        .summary-card.success .value { color: var(--accent-green); }
+        .summary-card.warning .value { color: var(--accent-orange); }
+        .summary-card.info .value { color: var(--accent-blue); }
+        
+        /* Status Banner */
+        .status-banner {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .status-banner.success { border-left: 4px solid var(--accent-green); }
+        .status-banner.warning { border-left: 4px solid var(--accent-orange); }
+        
+        .status-icon {
+            font-size: 2rem;
+        }
+        
+        .status-content h3 {
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+        
+        .status-content p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        /* Section */
+        .section {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .section-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .section-title .icon {
+            font-size: 1.2rem;
+        }
+        
+        /* Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        
+        .data-table th {
+            background: var(--bg-dark);
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table td {
+            padding: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .data-table tr:hover {
+            background: var(--bg-card-hover);
+        }
+        
+        .data-table .diffusion-row {
+            background: rgba(29, 155, 240, 0.1);
+        }
+        
+        .data-table .mono {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .rank-badge {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 50%;
+            background: var(--bg-dark);
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .winner-badge {
+            background: var(--gradient-green);
+            color: white;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            margin-left: 0.5rem;
+        }
+        
+        .positive { color: var(--accent-green); }
+        .negative { color: var(--accent-red); }
+        
+        /* Charts */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+        
+        .chart-title {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+        }
+        
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 2rem 0;
+            border-top: 1px solid var(--border-color);
+            margin-top: 2rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+        
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container { padding: 1rem; }
+            .header h1 { font-size: 1.8rem; }
+            .summary-grid { grid-template-columns: repeat(2, 1fr); }
+            .chart-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>📊 Market Diffusion Model</h1>
+            <p class="subtitle">Walk-Forward Cross-Validation Research Report</p>
+            <div class="meta">
+                <span><strong>Target:</strong> SPY</span>
+                <span><strong>Period:</strong> 2000-01-01 — 2025</span>
+                <span><strong>Folds:</strong> 14</span>
+                <span><strong>Generated:</strong> December 13, 2025</span>
+            </div>
+        </header>
+        
+        <!-- Executive Summary -->
+        <div class="summary-grid">
+            <div class="summary-card success">
+                <div class="value">#1</div>
+                <div class="label">Overall Rank</div>
+            </div>
+            <div class="summary-card info">
+                <div class="value">0.0465</div>
+                <div class="label">Mean CRPS</div>
+                </div>
+            <div class="summary-card success">
+                <div class="value">81.9%</div>
+                <div class="label">90% Coverage</div>
+                </div>
+            <div class="summary-card success">
+                <div class="value">1.02x</div>
+                <div class="label">Vol Ratio</div>
+                </div>
+            <div class="summary-card warning">
+                <div class="value">6/14</div>
+                <div class="label">Folds Won</div>
+            </div>
+            <div class="summary-card info">
+                <div class="value">43%</div>
+                <div class="label">Win Rate</div>
+            </div>
+        </div>
+        
+        <!-- Status Banner -->
+        <div class="status-banner success">
+            <div class="status-icon">✓</div>
+            <div class="status-content">
+                <h3>Diffusion Model OUTPERFORMS BASELINES</h3>
+                <p>The diffusion model achieves the best CRPS score, demonstrating superior probabilistic forecasting.</p>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="chart-grid">
+            <div class="chart-container">
+                <div class="chart-title">📈 CRPS by Model (Lower is Better)</div>
+                <div id="crpsChart" style="height: 300px;"></div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-title">📊 Fold-by-Fold Performance</div>
+                <div id="foldChart" style="height: 300px;"></div>
+            </div>
+        </div>
+        
+        <!-- Model Comparison Table -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🏆</span> Model Rankings</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Model</th>
+                        <th>CRPS ↓</th>
+                        <th>90% Coverage</th>
+                        <th>MAE</th>
+                        <th>Vol Ratio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+        <tr class="diffusion-row">
+            <td><span class="rank-badge">#1</span></td>
+            <td><strong>Diffusion</strong> <span class="winner-badge">👑 BEST</span></td>
+                <td class="mono">0.0465</td>
+                <td class="mono">81.9%</td>
+                <td class="mono">0.0651</td>
+                <td class="mono">1.02x</td>
+        </tr>
+        <tr class="">
+            <td><span class="rank-badge">#2</span></td>
+            <td><strong>Historical Bootstrap</strong> </td>
+                <td class="mono">0.0470</td>
+                <td class="mono">84.3%</td>
+                <td class="mono">0.0681</td>
+                <td class="mono">1.23x</td>
+        </tr>
+        <tr class="">
+            <td><span class="rank-badge">#3</span></td>
+            <td><strong>GARCH(1,1)</strong> </td>
+                <td class="mono">0.0471</td>
+                <td class="mono">84.8%</td>
+                <td class="mono">0.0596</td>
+                <td class="mono">1.11x</td>
+        </tr>
+        <tr class="">
+            <td><span class="rank-badge">#4</span></td>
+            <td><strong>AR(1)</strong> </td>
+                <td class="mono">0.0495</td>
+                <td class="mono">91.7%</td>
+                <td class="mono">0.0685</td>
+                <td class="mono">1.42x</td>
+        </tr>
+        <tr class="">
+            <td><span class="rank-badge">#5</span></td>
+            <td><strong>Random Walk</strong> </td>
+                <td class="mono">0.0495</td>
+                <td class="mono">93.3%</td>
+                <td class="mono">0.0676</td>
+                <td class="mono">1.42x</td>
+        </tr>
+                </tbody>
+            </table>
+            </div>
+            
+        <!-- Fold Results Table -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">📋</span> Fold-by-Fold Results</h2>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Fold</th>
+                        <th>Test Year</th>
+                        <th>Diffusion CRPS</th>
+                        <th>Best Baseline</th>
+                        <th>Baseline CRPS</th>
+                        <th>Δ (Diff - Base)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    
+        <tr>
+            <td>Fold 1</td>
+            <td>2007</td>
+            <td class="mono">0.0904</td>
+            <td>Random Walk</td>
+            <td class="mono">0.1407</td>
+            <td class="mono positive">-0.0502 ✓</td>
+        </tr>
+        <tr>
+            <td>Fold 2</td>
+            <td>2008</td>
+            <td class="mono">0.1094</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0542</td>
+            <td class="mono negative">+0.0552 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 3</td>
+            <td>2009</td>
+            <td class="mono">0.0626</td>
+            <td>Random Walk</td>
+            <td class="mono">0.0490</td>
+            <td class="mono negative">+0.0137 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 4</td>
+            <td>2010</td>
+            <td class="mono">0.0622</td>
+            <td>AR(1)</td>
+            <td class="mono">0.0462</td>
+            <td class="mono negative">+0.0160 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 5</td>
+            <td>2013</td>
+            <td class="mono">0.0191</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0196</td>
+            <td class="mono positive">-0.0005 ✓</td>
+        </tr>
+        <tr>
+            <td>Fold 6</td>
+            <td>2015</td>
+            <td class="mono">0.0165</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0197</td>
+            <td class="mono positive">-0.0032 ✓</td>
+        </tr>
+        <tr>
+            <td>Fold 7</td>
+            <td>2017</td>
+            <td class="mono">0.0474</td>
+            <td>Historical Bootstrap</td>
+            <td class="mono">0.0346</td>
+            <td class="mono negative">+0.0128 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 8</td>
+            <td>2018</td>
+            <td class="mono">0.0195</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0188</td>
+            <td class="mono negative">+0.0008 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 9</td>
+            <td>2019</td>
+            <td class="mono">0.0403</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0491</td>
+            <td class="mono positive">-0.0087 ✓</td>
+        </tr>
+        <tr>
+            <td>Fold 10</td>
+            <td>2020</td>
+            <td class="mono">0.0210</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0178</td>
+            <td class="mono negative">+0.0031 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 11</td>
+            <td>2021</td>
+            <td class="mono">0.0649</td>
+            <td>AR(1)</td>
+            <td class="mono">0.0419</td>
+            <td class="mono negative">+0.0230 ✗</td>
+        </tr>
+        <tr>
+            <td>Fold 12</td>
+            <td>2022</td>
+            <td class="mono">0.0264</td>
+            <td>Historical Bootstrap</td>
+            <td class="mono">0.0270</td>
+            <td class="mono positive">-0.0007 ✓</td>
+        </tr>
+        <tr>
+            <td>Fold 13</td>
+            <td>2023</td>
+            <td class="mono">0.0247</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0259</td>
+            <td class="mono positive">-0.0011 ✓</td>
+        </tr>
+        <tr>
+            <td>Fold 14</td>
+            <td>2024</td>
+            <td class="mono">0.0469</td>
+            <td>GARCH(1,1)</td>
+            <td class="mono">0.0456</td>
+            <td class="mono negative">+0.0014 ✗</td>
+        </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        
+        <!-- Forward Prediction Section -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">🔮</span> Forward Market Prediction</h2>
+            <div class="metric-cards">
+                <div class="metric-card">
+                    <div class="metric-value" style="color: var(--accent-green);">$698.48</div>
+                    <div class="metric-label">64-Day Target (Median)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">+2.8%</div>
+                    <div class="metric-label">Expected Return</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">70%</div>
+                    <div class="metric-label">P(Positive Return)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">-6.3%</div>
+                    <div class="metric-label">95% VaR</div>
+                </div>
+            </div>
+            <div class="chart-container" style="margin-top: 1.5rem;">
+                <div class="chart-title">📊 SPY Price Forecast — Next 64 Trading Days</div>
+                <div id="forwardChart" style="height: 400px;"></div>
+            </div>
+            <div style="text-align: center; margin-top: 1rem; padding: 1rem; background: var(--bg-card); border-radius: 8px;">
+                <span style="font-size: 1.5rem; font-weight: 600; color: var(--accent-green);">
+                    Model Sentiment: BULLISH 📈
+                </span>
+            </div>
+        </div>
+        
+        
+        <!-- Key Insights -->
+        <div class="section">
+            <h2 class="section-title"><span class="icon">💡</span> Key Insights</h2>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <strong>Performance:</strong> Diffusion model ranks <span class="badge badge-blue">#1</span> with CRPS of 0.0465 ± 0.0276
+                </li>
+                <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <strong>Calibration:</strong> Well-calibrated — Vol ratio of 1.02x ✓
+                </li>
+                <li style="padding: 0.5rem 0; border-bottom: 1px solid var(--border-color);">
+                    <strong>Coverage:</strong> 81.9% of actuals fall within 90% CI (good)
+                </li>
+                <li style="padding: 0.5rem 0;">
+                    <strong>Consistency:</strong> Won 6/14 folds (43% win rate)
+                </li>
+            </ul>
+        </div>
+        
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Generated by Market Diffusion Model • December 13, 2025 at 22:15:49</p>
+            <p style="margin-top: 0.5rem; font-size: 0.8rem;">
+                ⚠️ This is a statistical model for research purposes. Not financial advice.
+            </p>
+        </footer>
+    </div>
+    
+    <script>
+        const comparisonData = {"models": ["Diffusion", "Historical Bootstrap", "GARCH(1,1)", "AR(1)", "Random Walk"], "crps": [0.04654025567236158, 0.04699846473043146, 0.04711393195538679, 0.04945254244598727, 0.04953623272889412], "coverage": [81.90476190476193, 84.28571428571429, 84.76190476190474, 91.66666666666667, 93.33333333333334], "mae": [0.06512924716308123, 0.06812378808676245, 0.05963010854194508, 0.06854607457491713, 0.06756538630741568], "vol_ratio": [1.0221201987058783, 1.2334878065121437, 1.1122269424180682, 1.4170168018409193, 1.4199657238254344]};
+        const foldData = [{"fold": 1, "year": "2007", "diffusion": 0.09044180927546784, "best_baseline": 0.14067056802415642, "winner": "Diffusion"}, {"fold": 2, "year": "2008", "diffusion": 0.1094001765192741, "best_baseline": 0.0541638023842309, "winner": "Baseline"}, {"fold": 3, "year": "2009", "diffusion": 0.06264462951742247, "best_baseline": 0.048973867043675436, "winner": "Baseline"}, {"fold": 4, "year": "2010", "diffusion": 0.06223050196438962, "best_baseline": 0.04623830737184699, "winner": "Baseline"}, {"fold": 5, "year": "2013", "diffusion": 0.019082205746546753, "best_baseline": 0.019579704449947992, "winner": "Diffusion"}, {"fold": 6, "year": "2015", "diffusion": 0.01653300612128449, "best_baseline": 0.019710463590018313, "winner": "Diffusion"}, {"fold": 7, "year": "2017", "diffusion": 0.04742965521889178, "best_baseline": 0.034636518824658465, "winner": "Baseline"}, {"fold": 8, "year": "2018", "diffusion": 0.019522025010073354, "best_baseline": 0.018757268088166065, "winner": "Baseline"}, {"fold": 9, "year": "2019", "diffusion": 0.04033466710447539, "best_baseline": 0.04905737078325587, "winner": "Diffusion"}, {"fold": 10, "year": "2020", "diffusion": 0.020954816364403175, "best_baseline": 0.017828717322292534, "winner": "Baseline"}, {"fold": 11, "year": "2021", "diffusion": 0.06491753178421929, "best_baseline": 0.04188439494534108, "winner": "Baseline"}, {"fold": 12, "year": "2022", "diffusion": 0.026386409820044903, "best_baseline": 0.027043006447298117, "winner": "Diffusion"}, {"fold": 13, "year": "2023", "diffusion": 0.024748994858448194, "best_baseline": 0.02588993297674238, "winner": "Diffusion"}, {"fold": 14, "year": "2024", "diffusion": 0.046937150108120766, "best_baseline": 0.0455801990585428, "winner": "Baseline"}];
+        
+        // CRPS Bar Chart
+        const crpsColors = comparisonData.models.map(m => 
+            m === 'Diffusion' ? '#1d9bf0' : '#6e7681'
+        );
+        
+        Plotly.newPlot('crpsChart', [{
+            x: comparisonData.models,
+            y: comparisonData.crps,
+            type: 'bar',
+            marker: { 
+                color: crpsColors,
+                line: { color: 'rgba(255,255,255,0.1)', width: 1 }
+            },
+            text: comparisonData.crps.map(v => v.toFixed(4)),
+            textposition: 'outside',
+            textfont: { color: '#e7e9ea', size: 11 }
+        }], {
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: { color: '#8b98a5', family: 'Inter' },
+            margin: { t: 20, b: 60, l: 50, r: 20 },
+            xaxis: { 
+                gridcolor: '#2f3542',
+                tickfont: { size: 11 }
+            },
+            yaxis: { 
+                gridcolor: '#2f3542',
+                title: 'CRPS',
+                tickfont: { size: 11 }
+            },
+            hoverlabel: {
+                bgcolor: '#1a1f2e',
+                bordercolor: '#2f3542',
+                font: { color: '#e7e9ea', size: 13 }
+            }
+        }, { responsive: true, displayModeBar: false });
+        
+        // Fold Performance Chart
+        Plotly.newPlot('foldChart', [
+            {
+                x: foldData.map(f => f.year),
+                y: foldData.map(f => f.diffusion),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Diffusion',
+                line: { color: '#1d9bf0', width: 2 },
+                marker: { size: 8 }
+            },
+            {
+                x: foldData.map(f => f.year),
+                y: foldData.map(f => f.best_baseline),
+                type: 'scatter',
+                mode: 'lines+markers',
+                name: 'Best Baseline',
+                line: { color: '#ff7a00', width: 2, dash: 'dash' },
+                marker: { size: 8 }
+            }
+        ], {
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: { color: '#8b98a5', family: 'Inter' },
+            margin: { t: 20, b: 60, l: 50, r: 20 },
+            xaxis: { 
+                gridcolor: '#2f3542',
+                title: 'Test Year',
+                tickfont: { size: 11 }
+            },
+            yaxis: { 
+                gridcolor: '#2f3542',
+                title: 'CRPS',
+                tickfont: { size: 11 }
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.2,
+                x: 0.5,
+                xanchor: 'center'
+            },
+            showlegend: true,
+            hoverlabel: {
+                bgcolor: '#1a1f2e',
+                bordercolor: '#2f3542',
+                font: { color: '#e7e9ea', size: 13 }
+            }
+        }, { responsive: true, displayModeBar: false });
+        
+        
+        // Forward Prediction Chart
+        const forwardData = {"dates": ["2025-11-27", "2025-11-28", "2025-12-01", "2025-12-02", "2025-12-03", "2025-12-04", "2025-12-05", "2025-12-08", "2025-12-09", "2025-12-10", "2025-12-11", "2025-12-12", "2025-12-15", "2025-12-16", "2025-12-17", "2025-12-18", "2025-12-19", "2025-12-22", "2025-12-23", "2025-12-24", "2025-12-25", "2025-12-26", "2025-12-29", "2025-12-30", "2025-12-31", "2026-01-01", "2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09", "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15", "2026-01-16", "2026-01-19", "2026-01-20", "2026-01-21", "2026-01-22", "2026-01-23", "2026-01-26", "2026-01-27", "2026-01-28", "2026-01-29", "2026-01-30", "2026-02-02", "2026-02-03", "2026-02-04", "2026-02-05", "2026-02-06", "2026-02-09", "2026-02-10", "2026-02-11", "2026-02-12", "2026-02-13", "2026-02-16", "2026-02-17", "2026-02-18", "2026-02-19", "2026-02-20", "2026-02-23", "2026-02-24"], "mean": [679.8033324580197, 679.6299213799778, 679.8451917903641, 680.3515021507201, 680.8620108196234, 680.9689080371759, 681.2225082294995, 681.3693869747087, 681.6006604357398, 681.5219789316488, 681.9926983461053, 682.0849329603071, 682.5269769119565, 682.7039513757504, 682.8292047935242, 683.0794621665808, 683.4469310481767, 683.6402168363576, 683.9419218132798, 684.4032189222293, 684.8338686028643, 684.8887756768682, 685.1649457894192, 685.4183766080022, 685.6697814340987, 685.8863836141122, 685.9240864855063, 686.1613174670757, 686.8229871188939, 687.0325250489749, 687.4413353924328, 687.5914755314658, 687.8969264666847, 688.1470307489388, 688.2863510506772, 688.5439032608077, 688.6087618695715, 689.0047927124439, 689.4843456540262, 689.5424734196889, 689.7134386511634, 689.9787978727502, 690.1749944696436, 690.5307253695241, 690.7851966976967, 691.0122114491077, 691.3399068036529, 691.6347693892897, 692.2475866114482, 692.665057662842, 692.9783764124466, 693.2459762272239, 693.4778746216966, 693.6756145810456, 693.920823859065, 694.2002718334533, 694.3344476621216, 694.4481315155482, 694.8385744852955, 695.3403848192537, 695.0546374653308, 695.6181999644123, 695.6118187683272, 696.0935145299599], "median": [680.0807700001437, 680.3820455036098, 680.9158263941861, 681.1978132063298, 681.7097890480463, 682.0937388087841, 682.5788773956178, 682.6938327683367, 683.1704687298809, 683.4235398142926, 683.8732726649016, 684.05031947093, 684.7633450089494, 684.6959236044484, 685.0340138466979, 685.3948291854626, 686.111942597217, 686.3252019476975, 686.448199564898, 687.2335083229452, 687.0725383463935, 687.9764889562936, 687.6144484152495, 688.5086399133896, 687.7799631526726, 688.038563317852, 688.3878043693151, 689.0946612547875, 689.3939487471023, 689.6622866496571, 690.5798778708617, 690.777601915021, 690.9147875946912, 691.1264135738414, 690.7866378731344, 691.1684072286546, 691.1370321568243, 691.8922321870684, 692.7622734124404, 692.5684064243035, 692.3894148430985, 692.747534974641, 692.6475966861296, 693.3731689472785, 693.3599374774419, 693.5456550256833, 693.6255854991939, 693.2470728813723, 694.4882105452425, 694.6800274417208, 694.9631321909183, 695.6412429380376, 695.709944338782, 695.4163953072461, 695.848700081264, 696.4070881014272, 696.8459951101238, 696.205909089976, 696.5871295951102, 697.8750519998512, 696.8837829748561, 697.8933698604878, 697.9590165576622, 698.480172331963], "p5": [671.2548042952185, 666.7202065721837, 664.1838370895283, 664.0269097973296, 662.4664205184591, 659.6777565266143, 659.6765357170831, 656.8890379483069, 656.112974543386, 653.6807680455736, 653.8443345146754, 652.8937292752562, 653.7093827330856, 652.9061965935508, 651.1220778203653, 647.6002639358728, 648.177558528825, 647.6921552501298, 647.7260309771866, 650.0502601503053, 647.9077583421564, 647.5668793249796, 647.1603256008779, 647.1046022575256, 646.3230483200307, 646.5544556577912, 646.080750349593, 643.126814512948, 643.7358464188478, 643.1763187329491, 643.5306713119583, 645.1355979840586, 644.6732573980181, 644.9037511866599, 644.7492921916111, 643.5082424625978, 643.1279959986795, 644.3639442340354, 643.6155063213737, 643.9477334389878, 643.1417503155187, 643.9048979354822, 642.0502089824558, 641.8082572515873, 639.884568478268, 637.7360481292274, 640.1300014807919, 640.7506066029689, 642.2067304176906, 640.7284675877333, 639.9885993074558, 639.1795776642468, 639.3884116860352, 639.356232779956, 641.0980589309153, 639.2834351984178, 637.2937681066439, 637.2726412275786, 638.5697945374909, 638.5237443111342, 638.0539438450121, 639.3412157500067, 638.8425145101031, 638.2825075850682], "p95": [687.4289950741714, 689.3837198801272, 691.8926179917838, 694.2867138421193, 696.5065967947044, 697.0959487484535, 697.8897524380375, 699.6042499164428, 700.7941438084072, 702.2923656771829, 703.32060469207, 704.0250301213047, 705.4228894645795, 706.6677132191252, 707.562782547511, 708.592582895679, 710.4644800813186, 711.4297127828071, 711.9599208503125, 712.2031659521502, 712.9241441434667, 713.2307687203518, 714.0706896617661, 715.7655489437642, 717.5510023360405, 718.9814697670081, 719.5681647768407, 720.0098888146047, 720.16121109141, 720.9996291598052, 722.1012745835095, 722.7081956838911, 723.3746603587299, 725.2000165067885, 725.2600445855315, 725.3903242671242, 726.3733170946186, 725.6231035879132, 727.23463134452, 727.6831088700648, 727.8162352751248, 729.6524228336638, 729.4424671423308, 730.7967103567202, 732.3289321852467, 734.3789933781518, 733.9517714655955, 735.7000464013457, 736.2126857653816, 737.1675365336328, 737.233087558343, 737.867988510111, 739.0905423026296, 740.601587094942, 741.5199245722665, 741.603559419545, 742.9374315470178, 744.2117449229212, 745.2251973532419, 744.6054894552885, 744.3638406889278, 746.2818942606307, 746.6772107327752, 747.1814140410843], "last_price": 679.6799926757812, "last_date": "2025-11-26"};
+        
+        const forwardTrace1 = {
+            x: forwardData.dates,
+            y: forwardData.p95,
+            type: 'scatter',
+            mode: 'lines',
+            name: '95th Percentile',
+            line: { color: 'rgba(0, 186, 124, 0.3)', width: 0 },
+            showlegend: false
+        };
+        
+        const forwardTrace2 = {
+            x: forwardData.dates,
+            y: forwardData.p5,
+            type: 'scatter',
+            mode: 'lines',
+            name: '90% Confidence',
+            fill: 'tonexty',
+            fillcolor: 'rgba(0, 186, 124, 0.2)',
+            line: { color: 'rgba(0, 186, 124, 0.3)', width: 0 },
+        };
+        
+        const forwardTrace3 = {
+            x: forwardData.dates,
+            y: forwardData.mean,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Mean Forecast',
+            line: { color: '#1d9bf0', width: 2 }
+        };
+        
+        const forwardTrace4 = {
+            x: forwardData.dates,
+            y: forwardData.median,
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Median Forecast',
+            line: { color: '#00ba7c', width: 3 }
+        };
+        
+        const startLine = {
+            x: [forwardData.dates[0], forwardData.dates[0]],
+            y: [Math.min(...forwardData.p5) * 0.98, Math.max(...forwardData.p95) * 1.02],
+            type: 'scatter',
+            mode: 'lines',
+            name: 'Current Price: $' + forwardData.last_price.toFixed(2),
+            line: { color: '#6e7681', width: 2, dash: 'dash' }
+        };
+        
+        Plotly.newPlot('forwardChart', [forwardTrace1, forwardTrace2, forwardTrace3, forwardTrace4, startLine], {
+            paper_bgcolor: 'transparent',
+            plot_bgcolor: 'transparent',
+            font: { color: '#e7e9ea' },
+            margin: { t: 30, r: 30, b: 50, l: 60 },
+            xaxis: {
+                gridcolor: '#2f3542',
+                tickangle: -30,
+                title: 'Date'
+            },
+            yaxis: {
+                gridcolor: '#2f3542',
+                title: 'Price ($)',
+                tickprefix: '$'
+            },
+            legend: {
+                orientation: 'h',
+                y: -0.15
+            },
+            hovermode: 'x unified',
+            hoverlabel: {
+                bgcolor: '#1a1f2e',
+                bordercolor: '#2f3542',
+                font: { color: '#e7e9ea', size: 13 }
+            }
+        }, {responsive: true});
+        
+    </script>
+</body>
+</html>

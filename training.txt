@@ -1,0 +1,719 @@
+================================================================================
+MARKET DIFFUSION - Walk-Forward Cross-Validation
+================================================================================
+Ticker: SPY
+Device: cuda
+GPU: NVIDIA A100 80GB PCIe
+GPU Memory: 85.1 GB
+Epochs per fold: 75
+Batch size: 256
+Mixed Precision (AMP): True
+Number of folds: 14
+================================================================================
+Downloading data for ['SPY'] from 2000-01-01 to 2025-11-28...
+  Loaded 6515 rows with 0 additional features
+
+Total data: 6515 trading days (2000-01-04 to 2025-11-26)
+
+================================================================================
+FOLD 1/14
+  Train: 2000-01-01 → 2006-12-31
+  Val:   2006-12-31 → 2007-12-31
+  Test:  2007-12-31 → 2008-12-31
+================================================================================
+  Train samples: 1758
+  Val samples:   251
+  Test samples:  253
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.458959 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.455046 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.440068 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0084, Gen vol: 0.0181
+
+================================================================================
+MODEL COMPARISON (Fold 1 - Test Year: 2007)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+→ Diffusion               76.7%      60.0%     0.1138        1.10x     0.0904
+  Random Walk             60.0%       0.0%     0.1816        0.69x     0.1407
+  AR(1)                   60.0%       3.3%     0.1811        0.69x     0.1410
+  Historical Bootstrap      60.0%       0.0%     0.1823        0.63x     0.1500
+  GARCH(1,1)               0.0%       0.0%     0.2049        0.37x     0.1777
+================================================================================
+✅ Diffusion model has the BEST CRPS score!
+
+================================================================================
+FOLD 2/14
+  Train: 2000-01-01 → 2007-12-31
+  Val:   2007-12-31 → 2008-12-31
+  Test:  2008-12-31 → 2009-12-31
+================================================================================
+  Train samples: 2009
+  Val samples:   253
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.467169 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.445689 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.444298 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0183, Gen vol: 0.0172
+
+================================================================================
+MODEL COMPARISON (Fold 2 - Test Year: 2008)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  GARCH(1,1)              83.3%      26.7%     0.0830        0.90x     0.0542
+  Random Walk             90.0%      16.7%     0.0994        0.96x     0.0642
+  Historical Bootstrap      43.3%      10.0%     0.1005        0.88x     0.0663
+  AR(1)                   73.3%      10.0%     0.1039        0.96x     0.0671
+→ Diffusion               46.7%       6.7%     0.1560        1.20x     0.1094
+================================================================================
+⚠️  GARCH(1,1) beats Diffusion by 102.0% on CRPS
+
+================================================================================
+FOLD 3/14
+  Train: 2000-01-01 → 2008-12-31
+  Val:   2008-12-31 → 2009-12-31
+  Test:  2009-12-31 → 2010-12-31
+================================================================================
+  Train samples: 2262
+  Val samples:   252
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.415764 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.427277 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.413517 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0094, Gen vol: 0.0075
+
+================================================================================
+MODEL COMPARISON (Fold 3 - Test Year: 2009)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  Random Walk            100.0%      56.7%     0.0740        1.21x     0.0490
+  Historical Bootstrap      73.3%      20.0%     0.0794        0.99x     0.0504
+  AR(1)                  100.0%      53.3%     0.0775        1.20x     0.0505
+  GARCH(1,1)             100.0%      83.3%     0.0692        1.88x     0.0529
+→ Diffusion               76.7%      10.0%     0.0941        1.02x     0.0626
+================================================================================
+⚠️  Random Walk beats Diffusion by 27.9% on CRPS
+
+================================================================================
+FOLD 4/14
+  Train: 2000-01-01 → 2009-12-31
+  Val:   2009-12-31 → 2010-12-31
+  Test:  2010-12-31 → 2011-12-31
+================================================================================
+  Train samples: 2514
+  Val samples:   252
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.442859 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.419966 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.411103 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0054, Gen vol: 0.0076
+
+================================================================================
+MODEL COMPARISON (Fold 4 - Test Year: 2010)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  AR(1)                  100.0%      53.3%     0.0681        0.95x     0.0462
+  Random Walk            100.0%      50.0%     0.0736        0.96x     0.0499
+  Historical Bootstrap      96.7%      30.0%     0.0717        0.82x     0.0501
+  GARCH(1,1)              63.3%      36.7%     0.0782        0.56x     0.0576
+→ Diffusion               56.7%      26.7%     0.0841        0.61x     0.0622
+================================================================================
+⚠️  AR(1) beats Diffusion by 34.6% on CRPS
+
+================================================================================
+FOLD 5/14
+  Train: 2000-01-01 → 2012-12-31
+  Val:   2012-12-31 → 2013-12-31
+  Test:  2013-12-31 → 2014-12-31
+================================================================================
+  Train samples: 3268
+  Val samples:   252
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.442449 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.410358 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.426202 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0081, Gen vol: 0.0072
+
+================================================================================
+MODEL COMPARISON (Fold 5 - Test Year: 2013)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+→ Diffusion              100.0%      60.0%     0.0304        1.15x     0.0191
+  GARCH(1,1)             100.0%      96.7%     0.0176        1.47x     0.0196
+  Historical Bootstrap     100.0%      90.0%     0.0346        1.95x     0.0228
+  AR(1)                  100.0%      96.7%     0.0359        2.24x     0.0306
+  Random Walk            100.0%      90.0%     0.0352        2.25x     0.0317
+================================================================================
+✅ Diffusion model has the BEST CRPS score!
+
+================================================================================
+FOLD 6/14
+  Train: 2000-01-01 → 2014-12-31
+  Val:   2014-12-31 → 2015-12-31
+  Test:  2015-12-31 → 2016-12-31
+================================================================================
+  Train samples: 3772
+  Val samples:   252
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.434509 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.414566 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.409225 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0063, Gen vol: 0.0070
+
+================================================================================
+MODEL COMPARISON (Fold 6 - Test Year: 2015)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+→ Diffusion              100.0%      66.7%     0.0233        0.88x     0.0165
+  GARCH(1,1)             100.0%      96.7%     0.0172        1.30x     0.0197
+  Historical Bootstrap     100.0%      86.7%     0.0286        1.56x     0.0212
+  AR(1)                  100.0%      90.0%     0.0282        1.78x     0.0273
+  Random Walk            100.0%      96.7%     0.0269        1.78x     0.0286
+================================================================================
+✅ Diffusion model has the BEST CRPS score!
+
+================================================================================
+FOLD 7/14
+  Train: 2000-01-01 → 2016-12-31
+  Val:   2016-12-31 → 2017-12-31
+  Test:  2017-12-31 → 2018-12-31
+================================================================================
+  Train samples: 4276
+  Val samples:   251
+  Test samples:  251
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.438239 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.420253 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.400629 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0095, Gen vol: 0.0107
+
+================================================================================
+MODEL COMPARISON (Fold 7 - Test Year: 2017)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  Historical Bootstrap      96.7%      60.0%     0.0522        1.73x     0.0346
+  GARCH(1,1)              86.7%      63.3%     0.0473        1.29x     0.0361
+  AR(1)                   93.3%      80.0%     0.0540        1.96x     0.0382
+  Random Walk             93.3%      80.0%     0.0511        1.97x     0.0386
+→ Diffusion               73.3%      16.7%     0.0656        1.23x     0.0474
+================================================================================
+⚠️  Historical Bootstrap beats Diffusion by 36.9% on CRPS
+
+================================================================================
+FOLD 8/14
+  Train: 2000-01-01 → 2017-12-31
+  Val:   2017-12-31 → 2018-12-31
+  Test:  2018-12-31 → 2019-12-31
+================================================================================
+  Train samples: 4527
+  Val samples:   251
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.428765 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.423379 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.412991 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0032, Gen vol: 0.0059
+
+================================================================================
+MODEL COMPARISON (Fold 8 - Test Year: 2018)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  GARCH(1,1)             100.0%      76.7%     0.0227        0.91x     0.0188
+→ Diffusion               96.7%      50.0%     0.0269        0.82x     0.0195
+  Historical Bootstrap     100.0%      80.0%     0.0332        1.33x     0.0222
+  AR(1)                  100.0%      86.7%     0.0328        1.52x     0.0282
+  Random Walk            100.0%      83.3%     0.0320        1.52x     0.0288
+================================================================================
+⚠️  GARCH(1,1) beats Diffusion by 4.1% on CRPS
+
+================================================================================
+FOLD 9/14
+  Train: 2000-01-01 → 2018-12-31
+  Val:   2018-12-31 → 2019-12-31
+  Test:  2019-12-31 → 2020-12-31
+================================================================================
+  Train samples: 4778
+  Val samples:   252
+  Test samples:  253
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.417611 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.415089 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.408817 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0250, Gen vol: 0.0194
+
+================================================================================
+MODEL COMPARISON (Fold 9 - Test Year: 2019)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+→ Diffusion               93.3%      63.3%     0.0525        1.10x     0.0403
+  GARCH(1,1)             100.0%      60.0%     0.0648        1.24x     0.0491
+  Historical Bootstrap      50.0%      20.0%     0.0901        0.82x     0.0591
+  Random Walk             90.0%      33.3%     0.0917        0.96x     0.0616
+  AR(1)                   83.3%      26.7%     0.0954        0.95x     0.0635
+================================================================================
+✅ Diffusion model has the BEST CRPS score!
+
+================================================================================
+FOLD 10/14
+  Train: 2000-01-01 → 2019-12-31
+  Val:   2019-12-31 → 2020-12-31
+  Test:  2020-12-31 → 2021-12-31
+================================================================================
+  Train samples: 5030
+  Val samples:   253
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.430212 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.424344 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.409802 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0063, Gen vol: 0.0069
+
+================================================================================
+MODEL COMPARISON (Fold 10 - Test Year: 2020)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  GARCH(1,1)             100.0%      86.7%     0.0190        1.14x     0.0178
+→ Diffusion               93.3%      50.0%     0.0339        1.06x     0.0210
+  Historical Bootstrap      96.7%      50.0%     0.0430        1.52x     0.0237
+  AR(1)                  100.0%      70.0%     0.0416        1.73x     0.0309
+  Random Walk            100.0%      86.7%     0.0423        1.74x     0.0309
+================================================================================
+⚠️  GARCH(1,1) beats Diffusion by 17.5% on CRPS
+
+================================================================================
+FOLD 11/14
+  Train: 2000-01-01 → 2020-12-31
+  Val:   2020-12-31 → 2021-12-31
+  Test:  2021-12-31 → 2022-12-31
+================================================================================
+  Train samples: 5283
+  Val samples:   252
+  Test samples:  251
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.419385 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.417519 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.395293 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0154, Gen vol: 0.0120
+
+================================================================================
+MODEL COMPARISON (Fold 11 - Test Year: 2021)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  AR(1)                   93.3%      60.0%     0.0582        0.79x     0.0419
+  Random Walk             96.7%      63.3%     0.0609        0.79x     0.0439
+  Historical Bootstrap      93.3%      30.0%     0.0629        0.68x     0.0480
+  GARCH(1,1)              76.7%      23.3%     0.0817        0.53x     0.0570
+→ Diffusion               70.0%      26.7%     0.0864        0.70x     0.0649
+================================================================================
+⚠️  AR(1) beats Diffusion by 55.0% on CRPS
+
+================================================================================
+FOLD 12/14
+  Train: 2000-01-01 → 2021-12-31
+  Val:   2021-12-31 → 2022-12-31
+  Test:  2022-12-31 → 2023-12-31
+================================================================================
+  Train samples: 5535
+  Val samples:   251
+  Test samples:  250
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.423177 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.402414 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.404557 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0072, Gen vol: 0.0085
+
+================================================================================
+MODEL COMPARISON (Fold 12 - Test Year: 2022)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+→ Diffusion               93.3%      40.0%     0.0405        1.02x     0.0264
+  Historical Bootstrap     100.0%      60.0%     0.0421        1.48x     0.0270
+  GARCH(1,1)              96.7%      70.0%     0.0379        1.33x     0.0279
+  Random Walk            100.0%      83.3%     0.0406        1.70x     0.0320
+  AR(1)                  100.0%      70.0%     0.0432        1.70x     0.0320
+================================================================================
+✅ Diffusion model has the BEST CRPS score!
+
+================================================================================
+FOLD 13/14
+  Train: 2000-01-01 → 2022-12-31
+  Val:   2022-12-31 → 2023-12-31
+  Test:  2023-12-31 → 2024-12-31
+================================================================================
+  Train samples: 5786
+  Val samples:   250
+  Test samples:  252
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.430711 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.415589 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.397357 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0079, Gen vol: 0.0084
+
+================================================================================
+MODEL COMPARISON (Fold 13 - Test Year: 2023)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+→ Diffusion               93.3%      60.0%     0.0367        0.95x     0.0247
+  GARCH(1,1)             100.0%      86.7%     0.0270        1.40x     0.0259
+  Historical Bootstrap      96.7%      56.7%     0.0471        1.33x     0.0275
+  AR(1)                  100.0%      60.0%     0.0496        1.56x     0.0345
+  Random Walk             96.7%      80.0%     0.0487        1.56x     0.0354
+================================================================================
+✅ Diffusion model has the BEST CRPS score!
+
+================================================================================
+FOLD 14/14
+  Train: 2000-01-01 → 2023-12-31
+  Val:   2023-12-31 → 2024-12-31
+  Test:  2024-12-31 → 2025-11-28
+================================================================================
+  Train samples: 6036
+  Val samples:   252
+  Test samples:  227
+
+  Training Diffusion Model...
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.419632 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.423118 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.409637 | LR: 2.04e-04
+
+  Fitting Baseline Models...
+    ✓ Historical Bootstrap
+    ✓ Random Walk
+    ✓ GARCH(1,1)
+    ✓ AR(1)
+
+  Evaluating on 30 test windows...
+    DEBUG: Recent vol: 0.0063, Gen vol: 0.0090
+
+================================================================================
+MODEL COMPARISON (Fold 14 - Test Year: 2024)
+================================================================================
+Model                   90% Cov    50% Cov        MAE    Vol Ratio       CRPS
+--------------------------------------------------------------------------------
+  GARCH(1,1)              80.0%      36.7%     0.0643        1.25x     0.0456
+→ Diffusion               76.7%      60.0%     0.0675        1.47x     0.0469
+  Historical Bootstrap      73.3%      20.0%     0.0860        1.54x     0.0552
+  Random Walk             80.0%      43.3%     0.0880        1.79x     0.0583
+  AR(1)                   80.0%      43.3%     0.0900        1.79x     0.0603
+================================================================================
+⚠️  GARCH(1,1) beats Diffusion by 3.0% on CRPS
+
+================================================================================
+FINAL AGGREGATED RESULTS ACROSS ALL FOLDS
+================================================================================
+
+Model                   90% Cov        MAE    Vol Ratio       CRPS   CRPS Std
+--------------------------------------------------------------------------------
+→ Diffusion               81.9%     0.0651        1.02x     0.0465     0.0276
+  Historical Bootstrap      84.3%     0.0681        1.23x     0.0470     0.0322
+  GARCH(1,1)              84.8%     0.0596        1.11x     0.0471     0.0391
+  AR(1)                   91.7%     0.0685        1.42x     0.0495     0.0285
+  Random Walk             93.3%     0.0676        1.42x     0.0495     0.0280
+
+================================================================================
+
+STATISTICAL SIGNIFICANCE (paired t-test on CRPS):
+--------------------------------------------------
+  Diffusion vs Historical Bootstrap: p=0.9406     | Winner: Diffusion (+1.0%)
+  Diffusion vs Random Walk    : p=0.6248     | Winner: Diffusion (+6.0%)
+  Diffusion vs GARCH(1,1)     : p=0.9425     | Winner: Diffusion (+1.2%)
+  Diffusion vs AR(1)          : p=0.6344     | Winner: Diffusion (+5.9%)
+
+================================================================================
+GENERATING FORWARD MARKET PREDICTION
+================================================================================
+
+Training final model on ALL available data...
+  Training samples: 6387
+    Model input features: 1
+    Epoch 20/75 | Loss: 0.426659 | LR: 9.21e-04
+    Epoch 40/75 | Loss: 0.418170 | LR: 5.71e-04
+    Epoch 60/75 | Loss: 0.406564 | LR: 2.04e-04
+
+  Generating 1000 Monte Carlo paths for next 64 trading days...
+
+  ✓ Forward prediction saved to 'forward_prediction.png'
+
+=================================================================
+  📊 SPY FORWARD PREDICTION — November 26, 2025
+=================================================================
+  Current Price:     $679.68
+  Forecast Horizon:  64 trading days (~3 months)
+  Monte Carlo Paths: 1,000
+=================================================================
+  📈 PRICE TARGETS (64-Day):
+     Median:  $698.48  (+2.8%)
+     Mean:    $696.09  (+2.4%)
+     90% CI:  $638.28 — $747.18
+=================================================================
+  🎲 PROBABILITIES:
+     Positive return:  70.5%
+     Gain > 5%:        29.2%
+     Loss > 5%:        7.4%
+=================================================================
+  ⚠️  RISK METRICS:
+     95% VaR:          -6.3%  (5% chance of worse)
+     Expected Shortfall: -9.7%  (avg loss in worst 5%)
+=================================================================
+  🔮 MODEL SENTIMENT: BULLISH 📈
+=================================================================
+
+  ⚠️  DISCLAIMER: This is a statistical model, not financial advice.
+      Past performance does not guarantee future results.
+
+
+📄 Research report saved to 'research_report.html'
+
+================================================================================
+WALK-FORWARD CROSS-VALIDATION COMPLETE
+================================================================================
+
+================================================================================
+RUNNING ADDITIONAL ANALYSIS SUITE
+================================================================================
+
+================================================================================
+RUNNING COMPLETE ANALYSIS SUITE
+================================================================================
+
+================================================================================
+GENERATING COMPREHENSIVE VISUALIZATIONS
+================================================================================
+
+1. Creating return distribution comparison...
+   ✓ Saved to 'distribution_comparison.png'
+
+2. Creating calibration analysis...
+   ✓ Saved to 'calibration_analysis.png'
+
+3. Creating fold-by-fold performance analysis...
+   ✓ Saved to 'fold_performance.png'
+
+✓ All visualizations generated successfully!
+
+================================================================================
+CRISIS VS CALM PERIOD ANALYSIS
+================================================================================
+
+Crisis periods: 4 folds - ['2008', '2009', '2020', '2021']
+Calm periods:   10 folds
+
+--------------------------------------------------------------------------------
+Metric               Crisis Mean     Calm Mean       Difference      Better    
+--------------------------------------------------------------------------------
+crps                 0.0645          0.0394          0.0251          Calm      
+coverage_90          71.6667         86.0000         -14.3333        Calm      
+mae                  0.0926          0.0541          0.0385          Calm      
+vol_ratio            0.9945          1.0332          -0.0387         Crisis    
+--------------------------------------------------------------------------------
+
+Statistical Significance Tests (Mann-Whitney U):
+------------------------------------------------------------
+  crps           : U=31.00, p=0.1419 
+  coverage_90    : U=9.50, p=0.1504 
+  mae            : U=31.00, p=0.1419 
+------------------------------------------------------------
+
+Generating regime comparison visualization...
+   ✓ Saved to 'regime_analysis.png'
+
+================================================================================
+KEY FINDINGS - REGIME ANALYSIS
+================================================================================
+⚠️  Model performs WORSE during crisis periods
+  - Crisis CRPS: 0.0645
+  - Calm CRPS:   0.0394
+  - Degradation: 63.8%
+================================================================================
+
+================================================================================
+COMPREHENSIVE STATISTICAL TESTS
+================================================================================
+
+1. Normality Tests (Shapiro-Wilk):
+------------------------------------------------------------
+  Historical Bootstrap: W=0.7111, p=0.0005 [Non-normal]
+  Random Walk         : W=0.6809, p=0.0002 [Non-normal]
+  GARCH(1,1)          : W=0.6417, p=0.0001 [Non-normal]
+  AR(1)               : W=0.7002, p=0.0004 [Non-normal]
+  Diffusion           : W=0.8893, p=0.0789 [Normal]
+
+2. Pairwise Model Comparisons (Wilcoxon Signed-Rank):
+------------------------------------------------------------
+  Diffusion vs Historical Bootstrap: W=51.00, p=0.9515  [Winner: Diffusion]
+  Diffusion vs Random Walk    : W=44.00, p=0.6257  [Winner: Diffusion]
+  Diffusion vs GARCH(1,1)     : W=40.00, p=0.4631  [Winner: Diffusion]
+  Diffusion vs AR(1)          : W=45.00, p=0.6698  [Winner: Diffusion]
+
+3. Kruskal-Wallis Test (All Models):
+------------------------------------------------------------
+  H-statistic: 1.6256
+  p-value:     0.8042 
+  → No significant difference between models
+================================================================================
+
+================================================================================
+✓ COMPLETE ANALYSIS FINISHED
+================================================================================
+
+Generated files:
+  1. distribution_comparison.png - Return distribution analysis
+  2. calibration_analysis.png - Probabilistic calibration
+  3. fold_performance.png - Performance across folds
+  4. regime_analysis.png - Crisis vs calm comparison
+  5. research_report.html - Comprehensive HTML report
+
+Recommendations:
+  → Review calibration plots to assess forecast reliability
+  → Check regime analysis to understand performance in different markets
+  → Examine QQ plots to assess distributional assumptions
+================================================================================
