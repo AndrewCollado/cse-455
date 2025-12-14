@@ -12,4 +12,12 @@ build/
 .mypy_cache/
 .pytest_cache/
 monte_carlo_diffusion.png
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
 
