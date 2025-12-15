@@ -1,77 +1,6 @@
 \documentclass[final]{article}
 
-% --- AUTO-GENERATED BIBLIOGRAPHY ---
-\usepackage{filecontents}
-\begin{filecontents}{Bibliography.bib}
-@article{Fama1965,
-  title={The behavior of stock-market prices},
-  author={Fama, Eugene F},
-  journal={Journal of business},
-  volume={38},
-  number={1},
-  pages={34--105},
-  year={1965}
-}
-@article{Francq2019,
-  title={GARCH models: structure, statistical inference and financial applications},
-  author={Francq, Christian and Zakoian, Jean-Michel},
-  year={2019},
-  publisher={John Wiley \& Sons}
-}
-@book{Brockwell1991,
-  title={Time series: theory and methods},
-  author={Brockwell, Peter J and Davis, Richard A},
-  year={1991},
-  publisher={Springer}
-}
-@article{Meijer2024,
-  title={Diffusion models for time-series forecasting: A survey},
-  author={Meijer, J and others},
-  journal={arXiv preprint},
-  year={2024}
-}
-@article{Briazkalo2025,
-  title={Financial Time Series with Diffusion},
-  author={Briazkalo, A},
-  journal={Journal of Fin. Data Science},
-  year={2025}
-}
-@article{Kim2025,
-  title={Diffusion-based GBM for financial modeling},
-  author={Kim, S and others},
-  journal={Quantitative Finance},
-  year={2025}
-}
-@article{Dogariu2022,
-  title={Generation of realistic synthetic financial time-series},
-  author={Dogariu, M and others},
-  journal={ACM},
-  year={2022}
-}
-@article{Park2025,
-  title={Generative diffusion for asset pricing},
-  author={Park, H},
-  journal={IEEE Finance},
-  year={2025}
-}
-@article{Bergmeir2012,
-  title={On the use of cross-validation for time series predictor evaluation},
-  author={Bergmeir, Christoph and Ben{\'\i}tez, Jos{\'e} M},
-  journal={Information Sciences},
-  volume={191},
-  pages={192--213},
-  year={2012}
-}
-@article{Borra2010,
-  title={A comparison of validation methods for time series},
-  author={Borra, S and Di Ciaccio, A},
-  journal={Computational Statistics},
-  year={2010}
-}
-\end{filecontents}
-% ------------------------------------------------------------------------------------------
-
-% FIX: Pass 'numbers' option to natbib BEFORE nips_2017 loads it
+% FIX: Pass 'numbers' option to natbib BEFORE nips_2017 loads it to prevent option clash
 \PassOptionsToPackage{numbers}{natbib}
 
 \usepackage{nips_2017}
@@ -87,7 +16,7 @@
 \usepackage{float}
 \usepackage{multirow}
 
-% Adjust float separation to prevent white gaps
+% Adjust float separation to prevent white gaps on pages with figures
 \setlength{\textfloatsep}{12pt plus 2.0pt minus 4.0pt}
 \setlength{\floatsep}{12pt plus 2.0pt minus 2.0pt}
 \setlength{\intextsep}{12pt plus 2.0pt minus 2.0pt}
@@ -127,10 +56,13 @@ We provide a comprehensive evaluation of diffusion models for financial time ser
     \item \textbf{Practical Insights}: Demonstration that diffusion models achieve competitive performance (CRPS: 0.0465) with well-calibrated uncertainty (81.9\% coverage) while revealing limitations during crisis periods.
 \end{enumerate}
 
+\subsection{Societal Impact}
+Accurate financial forecasting tools benefit society in three key ways: (1) \textbf{Retirement Security}: They enable better long-term planning for individual investors and pension funds. (2) \textbf{Systemic Stability}: Improved tail-risk modeling helps institutions anticipate crashes, potentially reducing the severity of future financial crises. (3) \textbf{Democratization}: Open-source implementations like ours democratize access to sophisticated risk management tools previously available only to large hedge funds.
+
 \section{Related Works}\label{sec:past}
 
 \textbf{Generative Models in Finance.}
-Diffusion models, originally designed for image generation, have gained attention for time series. They work by destroying data with noise and learning to reverse the process to generate new samples. \citet{Meijer2024} survey diffusion for forecasting, while \citet{Briazkalo2025} apply them to financial series. Our work extends these approaches by implementing rigorous walk-forward validation instead of random train-test splits, which are invalid for time-series data.
+Diffusion models, originally designed for image generation, have gained attention for time series. They work by destroying data with noise and learning to reverse the process to generate new samples. \citet{Meijer2024} survey diffusion for forecasting, while \citet{Briazkalo2025} apply them to financial series. Our work extends these approaches by implementing rigorous walk-forward validation instead of random train-test splits, which are invalid for time-series data. In contrast to \citet{Kim2025} who incorporate Geometric Brownian Motion structure, or \citet{Park2025} who apply diffusion to price chart images, we focus on raw return forecasting. Similarly, unlike \citet{Dogariu2022} who use GANs for synthetic data generation, our work addresses conditional probabilistic forecasting with quantitative evaluation.
 
 \textbf{Classical Econometric Baselines.}
 To benchmark our Deep Learning model, we use two industry standards:
@@ -138,7 +70,7 @@ To benchmark our Deep Learning model, we use two industry standards:
     \item \textbf{GARCH (Generalized Autoregressive Conditional Heteroskedasticity)}~\cite{Francq2019}: The gold standard for volatility forecasting. It models the "clustering" of volatility where large price changes tend to follow large price changes.
     \item \textbf{AR (Autoregressive) Models}~\cite{Brockwell1991}: Simple linear models that predict future returns based on a weighted sum of past returns.
 \end{itemize}
-We demonstrate that diffusion offers comparable accuracy to these established methods while providing more flexible uncertainty quantification.
+We adhere to the principles of \citet{Bergmeir2012} and \citet{Borra2010}, who emphasize that standard cross-validation causes leakage in time series; thus, we implement a strict walk-forward approach.
 
 \section{Data}\label{sec:data}
 
