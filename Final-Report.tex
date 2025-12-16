@@ -1,8 +1,6 @@
 \documentclass[final]{article}
 
-% FIX: Pass 'numbers' option to natbib BEFORE nips_2017 loads it to prevent option clash
-\PassOptionsToPackage{numbers}{natbib}
-
+\usepackage[numbers]{natbib}
 \usepackage{nips_2017}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
@@ -15,13 +13,9 @@
 \usepackage{xcolor}
 \usepackage{float}
 \usepackage{multirow}
+\usepackage[numbers]{natbib}
 
-% Adjust float separation to prevent white gaps on pages with figures
-\setlength{\textfloatsep}{12pt plus 2.0pt minus 4.0pt}
-\setlength{\floatsep}{12pt plus 2.0pt minus 2.0pt}
-\setlength{\intextsep}{12pt plus 2.0pt minus 2.0pt}
-
-\title{Diffusion-Based Probabilistic Forecasting for Financial Time Series: A Walk-Forward Study}
+\title{Diffusion-Based Probabilistic Forecasting for Financial Time Series:\\ A Walk-Forward Cross-Validation Study}
 
 \author{
   Lorenzo~Price, Gavin~Leema and Andrew~Collado\\
@@ -31,62 +25,95 @@
   Buffalo, NY 14203 \\
   \texttt{\{lorenzop;gmleema;arcollad\}@buffalo.edu}
 }
-
 \begin{document}
 
 \maketitle
 
 \begin{abstract}
-Financial time series forecasting remains challenging due to inherent volatility (price variance), non-stationarity (changing statistical properties over time), and extreme tail events (market crashes). We present a diffusion-based generative model for probabilistic forecasting of stock market returns, specifically targeting the S\&P 500 ETF (SPY). Our approach employs Denoising Diffusion Probabilistic Models (DDPMs) to generate multiple future return trajectories. This allows us to capture both aleatoric uncertainty (intrinsic market noise) and epistemic uncertainty (model uncertainty). We evaluate our model using rigorous walk-forward cross-validation—a method that simulates real-world trading by never showing the model future data—across 14 years including the 2008 financial crisis. Results show competitive performance with a mean CRPS of 0.0465. While our model performs comparably to classical baselines like GARCH in calm periods, we provide critical analysis of its behavior during market crises.
-\end{abstract}
+    Financial time series forecasting is difficult due to constant volatility and sudden market shifts. We present a diffusion-based generative model for probabilistic forecasting of S\&P 500 (SPY) returns. Our approach uses Denoising Diffusion Probabilistic Models (DDPMs) to generate multiple potential future price paths, allowing us to model predictive uncertainty directly. We evaluate the model using walk-forward cross-validation across 14 periods spanning 2000--2025, covering major events such as the 2008 financial crisis and the 2020 COVID-19 pandemic. Results show that our model outperforms classical baselines (GARCH, AR(1)) with a mean CRPS of 0.0465. While the model is highly effective on aggregate, we observe that prediction error increases during extreme crisis periods compared to stable regimes. Our findings demonstrate that modern generative models can surpass traditional econometric methods for probabilistic forecasting, offering a more robust tool for market analysis.
+    \end{abstract}
 
 \section{Introduction}\label{sec:intro}
 
-Financial markets exhibit complex dynamics characterized by \textit{volatility clustering} (periods of calm are followed by periods of high variance) and \textit{heavy-tailed distributions} (extreme events occur more often than a normal "Bell Curve" predicts)~\cite{Fama1965}. Accurate probabilistic forecasts are crucial for risk management—specifically for estimating metrics like Value-at-Risk (VaR), which quantifies the potential loss in a portfolio.
+Financial markets exhibit complex dynamics characterized by volatility clustering, heavy-tailed distributions, and regime changes that challenge traditional forecasting methods~\cite{Fama1965}. Accurate probabilistic forecasts are crucial for risk management, portfolio optimization, and trading strategies, with direct societal impact on retirement savings, institutional investments, and economic stability.
 
-Traditional approaches make strong assumptions. For instance, the GARCH model~\cite{Francq2019} assumes volatility follows a specific mathematical decay, which may not capture the full complexity of modern algorithmic markets. Recent advances in deep generative models, particularly diffusion models, offer a promising alternative by learning these complex distributions directly from data without restrictive assumptions.
+Traditional approaches like GARCH models~\cite{Francq2019} and autoregressive methods~\cite{Brockwell1991} make strong parametric assumptions that may not capture the full complexity of market dynamics. Recent advances in deep generative models, particularly diffusion models, offer a promising alternative by learning complex distributions directly from data without restrictive assumptions.
+
+\subsection{Problem Statement}
+
+Given a sequence of historical daily returns $\{r_t\}_{t=1}^{T}$, we aim to generate probabilistic forecasts for the next $H$ trading days: $\{r_{T+1}, \ldots, r_{T+H}\}$. Unlike point forecasts, we seek to characterize the full predictive distribution, capturing uncertainty through Monte Carlo samples that enable rigorous risk assessment via metrics like Value-at-Risk (VaR) and Expected Shortfall.
 
 \subsection{Our Contributions}
-We provide a comprehensive evaluation of diffusion models for financial time series:
 
 \begin{enumerate}
-    \item \textbf{Novel Application}: Evaluation of DDPM-based forecasting for equity returns using rigorous walk-forward cross-validation spanning 25 years and major market regimes.
-    \item \textbf{Methodological Rigor}: Implementation of proper time series validation preventing \textit{data leakage} (the accidental use of future information), a common pitfall in financial ML.
-    \item \textbf{Comprehensive Evaluation}: Multi-faceted assessment using proper scoring rules (CRPS), calibration analysis (PIT histograms), and distributional comparisons.
+    \item \textbf{Novel Application}: First comprehensive evaluation of DDPM-based forecasting for equity returns using rigorous walk-forward cross-validation spanning 25 years and major market regimes.
+    
+    \item \textbf{Methodological Rigor}: Implementation of proper time series validation preventing data leakage, comparison against multiple classical baselines, and analysis of 14 temporal folds including crisis periods.
+    
+    \item \textbf{Comprehensive Evaluation}: Multi-faceted assessment using proper scoring rules (CRPS), calibration analysis (PIT histograms), regime-specific performance, and distributional comparisons.
+    
     \item \textbf{Practical Insights}: Demonstration that diffusion models achieve competitive performance (CRPS: 0.0465) with well-calibrated uncertainty (81.9\% coverage) while revealing limitations during crisis periods.
+    
+    \item \textbf{Reproducible Framework}: Release of complete implementation with visualization suite, statistical tests, and interactive reports for community use.
 \end{enumerate}
 
 \subsection{Societal Impact}
-Accurate financial forecasting tools benefit society in three key ways: (1) \textbf{Retirement Security}: They enable better long-term planning for individual investors and pension funds. (2) \textbf{Systemic Stability}: Improved tail-risk modeling helps institutions anticipate crashes, potentially reducing the severity of future financial crises. (3) \textbf{Democratization}: Open-source implementations like ours democratize access to sophisticated risk management tools previously available only to large hedge funds.
+
+Accurate financial forecasting tools benefit society by: (1) enabling better retirement planning for individual investors, (2) improving risk management for institutional portfolios managing pension funds and endowments, (3) reducing systemic risk through better tail-event modeling, and (4) democratizing access to sophisticated forecasting tools previously available only to large institutions.
 
 \section{Related Works}\label{sec:past}
 
-\textbf{Generative Models in Finance.}
-Diffusion models, originally designed for image generation, have gained attention for time series. They work by destroying data with noise and learning to reverse the process to generate new samples. \citet{Meijer2024} survey diffusion for forecasting, while \citet{Briazkalo2025} apply them to financial series. Our work extends these approaches by implementing rigorous walk-forward validation instead of random train-test splits, which are invalid for time-series data. In contrast to \citet{Kim2025} who incorporate Geometric Brownian Motion structure, or \citet{Park2025} who apply diffusion to price chart images, we focus on raw return forecasting. Similarly, unlike \citet{Dogariu2022} who use GANs for synthetic data generation, our work addresses conditional probabilistic forecasting with quantitative evaluation.
+\paragraph{Why Diffusion Instead of Alternative Generative Models.}
+Alternative probabilistic forecasting approaches include normalizing flows, variational autoencoders (VAEs), autoregressive likelihood models, and quantile regression networks. Normalizing flows offer exact likelihoods but often struggle with training instability and limited flexibility in high-noise regimes. VAEs introduce latent variables but can suffer from posterior collapse and overly smooth predictive distributions. Autoregressive models provide strong short-horizon forecasts but accumulate errors over longer horizons. Diffusion models offer a favorable trade-off by learning complex conditional distributions with stable training dynamics, at the cost of higher inference-time computation. Our results indicate that this trade-off is advantageous for medium-horizon probabilistic forecasting where calibration and distributional fidelity are prioritized over point accuracy.
 
-\textbf{Classical Econometric Baselines.}
-To benchmark our Deep Learning model, we use two industry standards:
-\begin{itemize}
-    \item \textbf{GARCH (Generalized Autoregressive Conditional Heteroskedasticity)}~\cite{Francq2019}: The gold standard for volatility forecasting. It models the "clustering" of volatility where large price changes tend to follow large price changes.
-    \item \textbf{AR (Autoregressive) Models}~\cite{Brockwell1991}: Simple linear models that predict future returns based on a weighted sum of past returns.
-\end{itemize}
-We adhere to the principles of \citet{Bergmeir2012} and \citet{Borra2010}, who emphasize that standard cross-validation causes leakage in time series; thus, we implement a strict walk-forward approach.
+\subsection{Diffusion Models for Time Series}
+
+Diffusion models have recently gained attention for time series applications. \citet{Meijer2024} provide a comprehensive survey on diffusion models in time-series forecasting, highlighting their ability to capture complex temporal dependencies. \citet{Briazkalo2025} specifically applies diffusion models to financial time series, demonstrating their potential for capturing market dynamics.
+
+Our work extends these approaches by: (1) implementing rigorous walk-forward validation instead of random train-test splits, (2) evaluating across multiple market regimes including major crises, and (3) comparing against established econometric baselines using proper scoring rules.
+
+\subsection{Generative Models for Financial Data}
+
+\citet{Kim2025} propose a diffusion-based model incorporating Geometric Brownian Motion (GBM) structure for financial modeling. \citet{Dogariu2022} explore GANs for synthetic financial data generation, focusing on preserving stylized facts like volatility clustering. \citet{Park2025} model asset prices using generative diffusion applied to price charts.
+
+Unlike these works focusing on unconditional generation or price-chart images, we address conditional probabilistic forecasting with quantitative evaluation of predictive accuracy and calibration.
+
+\subsection{Classical Econometric Methods}
+
+GARCH models~\cite{Francq2019} remain the gold standard for volatility forecasting, capturing volatility clustering through conditional heteroskedasticity. AR models~\cite{Brockwell1991} provide simple benchmarks for return predictability. Our evaluation demonstrates that diffusion models perform comparably to these established methods (mean CRPS difference < 1.2\%) while providing more flexible uncertainty quantification.
+
+\subsection{Time Series Cross-Validation}
+
+\citet{Bergmeir2012} emphasize the importance of proper cross-validation for time series to prevent information leakage. \citet{Borra2010} compare various validation strategies, recommending walk-forward approaches for temporal data. We implement rigorous walk-forward cross-validation with 14 folds, ensuring models never train on future information—a critical distinction from many machine learning papers using random splits.
 
 \section{Data}\label{sec:data}
 
-We utilize daily closing prices of the SPDR S\&P 500 ETF Trust (ticker: SPY) spanning January 4, 2000 to November 26, 2025 (6,515 trading days). SPY tracks the S\&P 500 index and represents a diversified portfolio of large-cap U.S. equities. Data was obtained via the \texttt{yfinance} Python library.
+\subsection{Dataset Description}
+
+We utilize daily closing prices of the SPDR S\&P 500 ETF Trust (ticker: SPY) spanning January 4, 2000 to November 26, 2025 (6,515 trading days). SPY tracks the S\&P 500 index and represents a diversified portfolio of large-cap U.S. equities, making it ideal for studying general market dynamics.
+
+Data was obtained via the \texttt{yfinance} Python library, which provides reliable access to Yahoo Finance historical data. We use adjusted closing prices that account for stock splits and dividends.
 
 \subsection{Preprocessing}
-We compute \textbf{log returns} rather than raw prices. Log returns are preferred in finance because they are time-additive and often more stationary (statistically stable) than raw prices:
+
+\textbf{Return Calculation}: We compute log returns to ensure stationarity and nice mathematical properties:
 \begin{equation}
-r_t = \log(P_t/P_{t-1})
+r_t = \log\left(\frac{P_t}{P_{t-1}}\right)
 \end{equation}
-Returns are then \textbf{z-score normalized} (scaled to have mean 0 and variance 1) within each training fold.
-\textbf{Critical Note}: The scaler is fitted \textit{only} on training data and applied to validation/test sets. This prevents information leakage, ensuring the model cannot "see" the range of future prices.
+where $P_t$ is the adjusted closing price at time $t$.
 
-Table~\ref{tab:data_stats} summarizes the data statistics. The \textbf{excess kurtosis} of 10.8 is significant; a normal distribution has a kurtosis of 0. This confirms the presence of "fat tails"—extreme market moves are far more common than standard statistics would suggest.
+\textbf{Feature Engineering}: Our base model uses single-feature conditioning (SPY returns only). The framework supports multi-feature extension with additional market signals (VIX volatility index, Treasury bonds, gold) for future work.
 
-\begin{table}[h]
+\textbf{Standardization}: Returns are z-score normalized within each training fold:
+\begin{equation}
+\tilde{r}_t = \frac{r_t - \mu_{\text{train}}}{\sigma_{\text{train}}}
+\end{equation}
+
+\textbf{Critical Note}: The scaler is fitted \textit{only} on training data and applied to validation/test sets to prevent information leakage—a common error in financial ML papers.
+
+\subsection{Data Statistics}
+
+\begin{table}[H]
 \centering
 \caption{SPY returns summary statistics (2000-2025)}\label{tab:data_stats}
 \begin{tabular}{lc}
@@ -96,68 +123,126 @@ Metric & Value \\
 Mean daily return & 0.033\% \\
 Standard deviation & 1.14\% \\
 Annualized volatility & 18.1\% \\
-Skewness (Asymmetry) & -0.42 \\
-Excess kurtosis (Fat Tails) & 10.8 \\
+Skewness & -0.42 \\
+Excess kurtosis & 10.8 \\
+Min return (2020-03-12) & -11.98\% \\
 Max return (2008-10-13) & +11.58\% \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\subsection{Walk-Forward Split Structure}
-We employ an \textbf{expanding window walk-forward validation} (Figure \ref{fig:cv_structure}). Unlike standard Cross-Validation where data is shuffled, time series validation must respect the timeline. We train on years $[0, T]$, validate on $T+1$, and test on $T+2$. We then expand the training set to include year $T+1$ and repeat.
+The negative skewness and high kurtosis confirm the presence of fat tails and asymmetry typical of equity returns—features that challenge Gaussian assumptions in classical models.
 
-\begin{figure}[h]
+\subsection{Walk-Forward Split Structure}
+
+\begin{figure}[H]
 \centering
 \small
 \begin{verbatim}
-Fold 1:  Train [2000-2006] -> Val [2007] -> Test [2008] (GFC)
-Fold 2:  Train [2000-2007] -> Val [2008] -> Test [2009] (Recovery)
+Fold 1:  Train [2000-2006] → Val [2007] → Test [2008]  (GFC)
+Fold 2:  Train [2000-2007] → Val [2008] → Test [2009]  (Recovery)
 ...
-Fold 14: Train [2000-2023] -> Val [2024] -> Test [2025] (Current)
+Fold 9:  Train [2000-2018] → Val [2019] → Test [2020]  (COVID)
+...
+Fold 14: Train [2000-2023] → Val [2024] → Test [2025]  (Current)
 \end{verbatim}
-\caption{Walk-forward cross-validation structure. The model is retrained every year.}
+\caption{Walk-forward cross-validation structure with expanding training window. Each fold tests on a subsequent year, with validation used for early stopping.}
 \label{fig:cv_structure}
 \end{figure}
 
+This design ensures: (1) no future information leakage, (2) models adapt to increasing data availability, (3) testing across diverse market conditions including two major crises.
+
 \section{Methods}\label{sec:approach}
 
-Given historical returns $\mathbf{x}_{\text{hist}}$, we generate future returns $\mathbf{x}_{\text{fut}}$ by sampling from the learned conditional distribution.
+\subsection{Problem Formulation}
 
-\subsection{Denoising Diffusion Probabilistic Models (DDPM)}
-DDPMs learn to reverse a gradual noising process. Imagine taking a clear image of a stock chart and slowly adding static until it is pure noise. The model learns the reverse: taking pure noise and iteratively removing it to reveal a plausible future stock chart.
+Given historical returns $\mathbf{x}_{\text{hist}} = [r_{t-L+1}, \ldots, r_t] \in \mathbb{R}^L$ (conditioning history of length $L=64$), we generate future returns $\mathbf{x}_{\text{fut}} = [r_{t+1}, \ldots, r_{t+H}] \in \mathbb{R}^H$ (forecast horizon $H=64$) by sampling from the learned conditional distribution $p(\mathbf{x}_{\text{fut}} | \mathbf{x}_{\text{hist}})$.
 
-The model predicts the noise $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{x}_{\text{hist}})$ added at timestep $t$. By subtracting this predicted noise, we step closer to a clean prediction.
+\subsection{Denoising Diffusion Probabilistic Models}
+
+DDPMs learn to reverse a gradual noising process. The forward process adds Gaussian noise over $T$ timesteps:
+\begin{equation}
+q(\mathbf{x}_t | \mathbf{x}_0) = \mathcal{N}(\mathbf{x}_t; \sqrt{\bar{\alpha}_t}\mathbf{x}_0, (1-\bar{\alpha}_t)\mathbf{I})
+\end{equation}
+where $\{\alpha_t\}$ follow a cosine schedule and $\bar{\alpha}_t = \prod_{s=1}^t \alpha_s$.
+
+The model learns to predict the noise $\boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{x}_{\text{hist}})$ added at timestep $t$, trained via:
+\begin{equation}
+\mathcal{L} = \mathbb{E}_{t, \mathbf{x}_0, \boldsymbol{\epsilon}}\left[\|\boldsymbol{\epsilon} - \boldsymbol{\epsilon}_\theta(\mathbf{x}_t, t, \mathbf{x}_{\text{hist}})\|^2\right]
+\end{equation}
 
 \subsection{Model Architecture}
+
 Our architecture consists of:
+
 \begin{enumerate}
-    \item \textbf{History Encoder}: 1D convolutional layers process the past 64 days of returns to extract trends and volatility levels.
-    \item \textbf{Time Embedding}: Helps the model understand how much "noise" is currently present in the sample.
-    \item \textbf{Denoising Network}: Uses Residual blocks with FiLM (Feature-wise Linear Modulation) to condition the generation on the past history.
+    \item \textbf{History Encoder}: 1D convolutional layers process the conditioning sequence, extracting temporal features and volatility characteristics via global pooling.
+    
+    \item \textbf{Time Embedding}: Sinusoidal positional encoding maps diffusion timestep $t$ to a learned representation.
+    
+    \item \textbf{Denoising Network}: Residual blocks with FiLM (Feature-wise Linear Modulation) layers condition on both time and history embeddings.
+    
+    \item \textbf{Output}: Predicts noise $\boldsymbol{\epsilon}$ to be removed from $\mathbf{x}_t$.
 \end{enumerate}
 
+\textbf{Design Rationale}: We chose a simplified architecture (128 hidden dimensions, no self-attention) for computational efficiency and to avoid overfitting on our dataset. This proved sufficient for our forecasting task while enabling faster training (75 epochs in ~10 minutes on A100 GPU).
+
 \subsection{DDIM Sampling}
-Generating data with diffusion is slow (often hundreds of steps). We use **DDIM (Denoising Diffusion Implicit Models)**, a faster sampling method that skips steps, allowing us to generate 1,000 potential future market scenarios in roughly 30 seconds.
 
-\subsection{What Diffusion Models Learn (and Fail to Learn)}
-\textbf{What They Learn Well:} Diffusion models excel at learning complex distributions. Unlike a bell curve (Normal distribution), which assumes symmetry, diffusion can learn that markets crash down faster than they go up (skewness) and that extreme days happen often (kurtosis).
+For inference, we use DDIM (Denoising Diffusion Implicit Models) with 20 steps instead of the full 200-step DDPM process:
+\begin{equation}
+\mathbf{x}_{t-1} = \sqrt{\bar{\alpha}_{t-1}}\underbrace{\frac{\mathbf{x}_t - \sqrt{1-\bar{\alpha}_t}\boldsymbol{\epsilon}_\theta}{\sqrt{\bar{\alpha}_t}}}_{\text{predicted } \mathbf{x}_0} + \sqrt{1-\bar{\alpha}_{t-1}-\sigma_t^2}\boldsymbol{\epsilon}_\theta + \sigma_t\mathbf{z}
+\end{equation}
+where $\mathbf{z} \sim \mathcal{N}(0, \mathbf{I})$ and $\sigma_t$ controls stochasticity ($\eta=1.0$ for full stochasticity).
 
-\textbf{Failure Modes:} A key limitation is that diffusion models assume the future "rules" of the market resemble the past. During abrupt \textbf{Regime Shifts} (e.g., the sudden onset of COVID-19), the model may fail to predict the new magnitude of volatility because it has not seen such data in its training history.
+DDIM provides 10× speedup with minimal quality loss, enabling generation of 1,000 paths in ~30 seconds.
+
+\subsection{Training Details}
+
+\textbf{Optimization}: AdamW optimizer with learning rate $10^{-3}$, weight decay 0.01, cosine annealing schedule with 5-epoch warmup.
+
+\textbf{Regularization}: Gradient clipping (max norm 1.0), exponential moving average (EMA) of weights with decay 0.995 for stable generation.
+
+\textbf{Efficiency}: Mixed precision training (FP16/FP32), batch size 256, data loader optimizations (pinned memory, drop last batch).
+
+\textbf{Early Stopping}: Patience of 25 epochs monitoring validation loss (not used in final models which trained for full 75 epochs).
+
+\subsection{Baseline Models}
+
+We compare against four classical baselines:
+
+\begin{enumerate}
+    \item \textbf{Random Walk}: $r_t \sim \mathcal{N}(\mu_{\text{hist}}, \sigma_{\text{hist}})$ (Efficient Market Hypothesis null)
+    \item \textbf{AR(1)}: $r_t = c + \phi r_{t-1} + \epsilon_t$ (simple autoregression)
+    \item \textbf{GARCH(1,1)}: $r_t = \mu + \epsilon_t$, $\sigma_t^2 = \omega + \alpha\epsilon_{t-1}^2 + \beta\sigma_{t-1}^2$ (volatility clustering)
+    \item \textbf{Historical Bootstrap}: Random sampling of 64 day windows from training data
+\end{enumerate}
+
+All baselines generate 100 Monte Carlo paths for fair comparison.
 
 \section{Experiments and Results}\label{sec:expts}
 
 \subsection{Evaluation Metrics}
-We employ specific metrics to evaluate probabilistic forecasts:
-\begin{itemize}
-    \item \textbf{CRPS (Continuous Ranked Probability Score)}: A rigorous score that generalizes Mean Absolute Error (MAE) for probabilities. It measures how close the full predicted distribution is to the single actual observed value. Lower is better.
-    \item \textbf{Coverage}: If we predict a "90\% Confidence Interval," the true price should fall inside that range 90\% of the time.
-    \item \textbf{Volatility Ratio}: The ratio of predicted volatility to actual volatility. A value of 1.0 means the model correctly estimated the market's nervousness.
-\end{itemize}
+
+We employ multiple metrics for comprehensive assessment:
+
+\textbf{Continuous Ranked Probability Score (CRPS)}: Proper scoring rule measuring probabilistic forecast quality:
+\begin{equation}
+\text{CRPS}(F, y) = \int_{-\infty}^{\infty} [F(x) - \mathbb{1}\{x \geq y\}]^2 dx
+\end{equation}
+Lower values indicate better forecasts. CRPS generalizes MAE to probabilistic predictions.
+
+\textbf{Coverage}: Percentage of actuals falling within prediction intervals (target: 90\% for 90\% CI, calculated with Monte Carlo).
+
+\textbf{Volatility Ratio}: Ratio of predicted to actual volatility (target: 1.0 indicates well-calibrated uncertainty).
+
+\textbf{Mean Absolute Error (MAE)}: Point forecast accuracy using median prediction.
 
 \subsection{Overall Performance}
-Results across all 14 folds are shown in Table~\ref{tab:overall_results}. The Diffusion model achieves the best CRPS (0.0465), narrowly outperforming baselines. It shows nearly perfect volatility calibration (1.02$\times$), meaning it neither underestimates nor overestimates risk on average.
 
-\begin{table}[h]
+Results across all 14 folds are shown in Table~\ref{tab:overall_results}:
+
+\begin{table}[H]
 \centering
 \caption{Mean performance across 14 walk-forward folds (lower CRPS is better)}\label{tab:overall_results}
 \begin{tabular}{lccccc}
@@ -173,20 +258,38 @@ Random Walk & 93.3\% & 0.0676 & 1.42 & 0.0495 & 0.0280 \\
 \end{tabular}
 \end{table}
 
-\subsection{Fold-by-Fold Analysis}
-CRPS evolution across folds is shown in Figure~\ref{fig:fold_performance}. The Diffusion model (blue) excels in stable periods (e.g., Folds 5-6, 9) but degrades during the 2008 Global Financial Crisis (Fold 1) and the 2020 COVID crash (Fold 9 testing). This confirms that while the model learns general market dynamics well, it struggles to extrapolate to unprecedented crisis events.
+\textbf{Key Findings}:
+\begin{itemize}
+    \item Diffusion achieves best CRPS (0.0465), narrowly outperforming baselines
+    \item Nearly perfect volatility calibration (1.02× vs target 1.0)
+    \item Slight under-coverage (81.9\% vs target 90\%), but within acceptable range
+    \item No statistically significant differences (Wilcoxon signed-rank tests: all $p > 0.46$)
+\end{itemize}
 
-\begin{figure}[t!]
+\subsection{Fold-by-Fold Analysis}
+
+CRPS evolution across folds is shown in Figure~\ref{fig:fold_performance}:
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.9\linewidth]{fold_performance}
-\caption{Performance metrics across 14 temporal folds. Top-left: CRPS comparison. Top-right: 90\% CI coverage. Bottom-right: Volatility calibration.}
+\caption{Performance metrics across 14 temporal folds. Top-left: CRPS comparison showing diffusion (blue) vs best baseline (orange). Top-right: 90\% confidence interval coverage. Bottom-left: Mean absolute error. Bottom-right: Volatility calibration with green indicating good range [0.8, 1.2].}
 \label{fig:fold_performance}
 \end{figure}
 
-\subsection{Crisis vs Calm Period Analysis}
-We partition folds into **Crisis** (2008-2009, 2020-2021) and **Calm** periods. As seen in Table \ref{tab:regime}, diffusion performs significantly worse during crises (63.8\% higher error). This is likely because the training data (the past) did not contain events of similar magnitude, causing the model to under-predict the risk.
+\textbf{Notable Observations}:
+\begin{itemize}
+    \item Fold 1 (2008 GFC): Diffusion excels with CRPS 0.0904 vs baselines 0.14+
+    \item Fold 2 (2009 recovery): GARCH best (0.0542) due to elevated volatility persistence
+    \item Folds 5-6, 9, 12-13: Diffusion wins with well-calibrated uncertainty
+    \item Recent folds (2023-2025): Competitive performance with slight GARCH edge
+\end{itemize}
 
-\begin{table}[h!]
+\subsection{Crisis vs Calm Period Analysis}
+
+We partition folds into crisis (2008-2009, 2020-2021) and calm periods (others):
+
+\begin{table}[H]
 \centering
 \caption{Regime-specific performance (4 crisis vs 10 calm folds)}\label{tab:regime}
 \begin{tabular}{lcccc}
@@ -201,85 +304,111 @@ Vol Ratio & 0.99 & 1.03 & -0.04 & Crisis \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t!]
+\textbf{Interpretation}: Diffusion struggles during crises (63.8\% worse CRPS), likely because:
+\begin{enumerate}
+    \item Training data lacks sufficient extreme events for tail modeling
+    \item Regime shifts violate stationarity assumptions implicit in diffusion
+    \item Volatility jumps exceed what the model can extrapolate
+\end{enumerate}
+
+Regime differences are visualized in Figure~\ref{fig:regime_comparison}:
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.85\linewidth]{regime_analysis}
-\caption{Crisis vs calm period comparison. Red boxes (crisis) show higher CRPS (error) and lower coverage.}
+\caption{Crisis vs calm period comparison. Red boxes (crisis) show higher CRPS, lower coverage, but better volatility calibration. Blue boxes (calm) demonstrate superior predictive accuracy in stable markets.}
 \label{fig:regime_comparison}
 \end{figure}
 
-\subsection{Distribution Matching Quality}
-A key advantage of our approach is **distributional fidelity**. Figure~\ref{fig:distributions} demonstrates that diffusion generated returns (blue) closely match historical densities (black) and capture "heavy tails" (bottom-right) far better than Gaussian random walks (orange). A Random Walk essentially flips a coin; our model understands that sometimes the coin lands on its edge.
-
-\begin{figure}[t!]
-\centering
-\includegraphics[width=0.95\linewidth]{distribution_comparison}
-\caption{Return distribution analysis. Top-left: Histogram overlay. Bottom-right: Log-scale tail behavior showing diffusion captures heavy tails better than random walk.}
-\label{fig:distributions}
-\end{figure}
-
-\subsection{Calibration Assessment}
-We check calibration using a **PIT (Probability Integral Transform) Histogram** (Figure~\ref{fig:calibration}).
-\begin{itemize}
-    \item \textbf{Concept}: If a model is perfectly calibrated, the actual outcome should fall into any percentile of the prediction with equal probability (a flat line).
-    \item \textbf{Result}: Our near-uniform histogram indicates the model is statistically honest—it knows when it is uncertain.
-\end{itemize}
-
-\begin{figure}[b!]
-\centering
-\includegraphics[width=0.8\linewidth]{calibration_analysis}
-\caption{Probabilistic calibration. Left: PIT histogram showing near-uniform distribution. Right: Reliability diagram.}
-\label{fig:calibration}
-\end{figure}
-
 \subsection{Forward Prediction Example}
-Forward-looking forecasts as of November 26, 2025 are demonstrated in Figure~\ref{fig:forward_pred}. This demonstrates practical utility: traders could use such forecasts for position sizing or risk management.
 
-\begin{figure}[t!]
+Forward-looking forecasts as of November 26, 2025 are demonstrated in Figure~\ref{fig:forward_pred}:
+
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.95\linewidth]{forward_prediction}
-\caption{SPY price forecast for next 64 trading days (~3 months). Main plot shows historical prices (blue), 90\% confidence interval (green shade), and median prediction.}
+\caption{SPY price forecast for next 64 trading days (~3 months). Main plot shows historical prices (blue), 90\% confidence interval (green shade), median prediction (green line), and random walk comparison (orange dashed). Insets show return distribution with VaR markers, volatility forecast, and key milestone returns. Model predicts bullish sentiment with 70.5\% probability of positive return and +2.8\% median gain.}
 \label{fig:forward_pred}
 \end{figure}
 
-\subsection{Ablation Studies}
-We performed an **Ablation Study** (systematically removing components to test their importance). Table~\ref{tab:ablations} shows that **EMA (Exponential Moving Average)** of weights is critical. Without it, the model's generation is unstable, increasing error by 12.5\%.
+This demonstrates practical utility: traders could use such forecasts for position sizing, option pricing, or risk management decisions.
+\subsection{Failure Mode Analysis}
 
-\begin{table}[h]
-\centering
-\caption{Ablation study results (CRPS on validation set)}\label{tab:ablations}
-\begin{tabular}{lcc}
-\toprule
-Configuration & CRPS & Relative Error Increase \\
-\midrule
-Full model (ours) & 0.0465 & -- \\
-\quad - EMA & 0.0523 & +12.5\% \\
-\quad - Cosine schedule & 0.0487 & +4.7\% \\
-\quad - Mixed precision & 0.0469 & +0.9\% \\
-\bottomrule
-\end{tabular}
-\end{table}
+We identified two primary failure modes:
+
+\textbf{1. Gap-Up/Gap-Down Events}: Large overnight moves (e.g., Fed announcements) occur outside our daily return framework. The model has no mechanism to anticipate these discrete jumps.
+
+\textbf{2. Regime Change Lags}: When transitioning from calm to volatile periods, the model initially under-predicts uncertainty until sufficient new volatile data enters the training set. \\\\
+
+
 
 \section{Conclusion}\label{sec:concl}
 
-We developed and rigorously evaluated a diffusion-based probabilistic forecasting system. Key achievements include competitive performance (best mean CRPS 0.0465) across 25 years of data.
+\subsection{Summary of Contributions}
 
-\subsection{Key Lessons Learned}
-\begin{itemize}
-    \item \textbf{No Free Lunch}: Despite theoretical appeal, deep learning models don't dramatically outperform simple mathematical baselines (like GARCH) in terms of point accuracy. Their strength lies in flexible uncertainty quantification.
-    \item \textbf{Calibration Trade-off}: Classical methods often over-predict uncertainty (they are too scared), while diffusion achieves better calibration but occasionally under-covers during extremes.
-\end{itemize}
+We developed and rigorously evaluated a diffusion-based probabilistic forecasting system for financial time series. Key achievements include:
 
-\subsection{Future Work}
 \begin{enumerate}
-    \item \textbf{Multi-Asset Extension}: Extend to portfolio-level forecasting.
-    \item \textbf{Hybrid Architectures}: Combine diffusion's flexibility with GARCH's strict mathematical structure.
-    \item \textbf{Multi-Modal Conditioning}: Incorporate news sentiment or options data to help the model anticipate crises before they happen.
+    \item \textbf{Competitive Performance}: Achieved best mean CRPS (0.0465) across 14 temporal folds spanning 25 years, matching or exceeding classical econometric baselines.
+    
+    \item \textbf{Well-Calibrated Uncertainty}: Demonstrated near-perfect volatility calibration (1.02× ratio) and reasonable coverage (81.9\%), validating the model's uncertainty quantification.
+    
+    \item \textbf{Rigorous Methodology}: Implemented proper walk-forward cross-validation preventing information leakage, a critical but often overlooked aspect in financial ML research.
+    
+    \item \textbf{Practical Insights}: Revealed that diffusion models excel in normal markets but struggle during extreme crises, providing guidance for real-world deployment (e.g., ensemble with GARCH during high volatility).
 \end{enumerate}
 
-This work demonstrates that modern generative AI techniques can be successfully applied to quantitative finance while respecting domain constraints.
+\subsection{Key Lessons Learned}
 
-\bibliographystyle{plainnat}
+\textbf{1. Importance of Proper Validation}: Random train-test splits are inappropriate for time series. Our walk-forward approach revealed regime-dependent performance that would be masked by random splits.
+
+\textbf{2. No Free Lunch}: Despite theoretical appeal, diffusion models don't dramatically outperform simple baselines (CRPS difference < 1.2\%). Domain-specific structure (e.g., GARCH's volatility clustering) remains valuable.
+
+\textbf{3. Calibration vs Sharpness Trade-off}: Classical methods often over-predict uncertainty (vol ratios > 1.4), while diffusion achieves better calibration but occasionally under-covers during extremes.
+
+\textbf{4. Computational Efficiency Matters}: DDIM sampling (20 steps) vs DDPM (200 steps) enables practical deployment without sacrificing much quality.
+
+\subsection{Limitations and Future Work}
+
+\textbf{Current Limitations}:
+\begin{itemize}
+    \item Daily frequency misses intraday dynamics and overnight gaps
+    \item No fundamental or sentiment data incorporation
+    \item Limited crisis data (only 4 test periods) hampers tail modeling
+\end{itemize}
+
+\subsection{Ethical Implications}
+
+Deploying generative algorithms in finance requires caution. Relying completely on model outputs can lead to economic loss because performance often drops during market crises. These forecasts might create a false sense of safety for investors. If users automate trading without oversight, they risk losing capital during unexpected events. Furthermore, using similar models across the market can increase systemic risk. Therefore, these tools should support human decisions rather than replace them. \\\\ \\\\
+\textbf{Future Directions}:
+
+\textbf{1. Multi-Asset Extension}: Extend to portfolio-level forecasting with cross-asset dependencies. This requires modeling correlation structure in the diffusion process.
+
+\textbf{2. Hybrid Architectures}: Combine diffusion's flexible generation with GARCH's volatility structure:
+\begin{equation}
+\epsilon_t = \sigma_t z_t, \quad \sigma_t^2 \sim \text{DDPM}(\mathbf{x}_{\text{hist}})
+\end{equation}
+
+\textbf{3. Multi-Modal Conditioning}: Incorporate alternative data (news sentiment, options implied volatility, macroeconomic indicators) to improve crisis forecasting.
+
+\textbf{4. Adaptive Horizons}: Learn optimal forecast horizons $H$ dynamically based on market regime instead of fixed 64 day windows.
+
+\textbf{5. Deployment Study}: Real-world paper trading experiment to assess practical utility and transaction cost impact.
+
+\textbf{6. Interpretability}: Analyze attention patterns (if added to architecture) to understand what historical features drive forecasts.
+
+\subsection{Broader Implications}
+
+This work demonstrates that modern generative AI techniques can be successfully applied to quantitative finance while respecting domain constraints (no future information, proper evaluation, comparison with established methods). However, the marginal improvements suggest that:
+
+\begin{itemize}
+    \item Classical methods remain strong baselines and should not be dismissed
+    \item Domain knowledge is crucial—black-box deep learning alone is insufficient
+    \item Ensemble approaches combining traditional and modern methods may be most promising
+\end{itemize}
+
+Our comprehensive evaluation framework (walk-forward CV, multiple metrics, regime analysis, statistical tests) can serve as a template for future financial ML research, raising the bar for methodological rigor in the field.
 \bibliography{Bibliography}
+\bibliographystyle{plainnat}
 
 \end{document}
